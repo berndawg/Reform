@@ -1,0 +1,10 @@
+.vs
+obj/
+bin/
+Reform/Reform.csproj.vspscc
+ReformDB/Database.refactorlog
+ReformDB/ReformDB.dbmdl
+ReformDB/ReformDB.jfm
+ReformDB/ReformDB.sqlproj.user
+ReformDB/ReformDB.sqlproj.vspscc
+ReformTests/ReformTests.csproj.vspscc
