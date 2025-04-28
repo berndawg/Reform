@@ -1,6 +1,8 @@
 // Copyright (c) 2020 Bernie Seabrook. All Rights Reserved.
 using System;
-using System.Data.SqlClient;
+using System.Data;
+using System.Data.Common;
+using MySql.Data.MySqlClient;
 using Reform.Interfaces;
 
 namespace Reform.Logic
@@ -9,6 +11,7 @@ namespace Reform.Logic
     {
         private readonly IConnectionStringProvider _connectionStringProvider;
         private readonly IMetadataProvider<T> _metadataProvider;
+        private readonly DbProviderFactory _dbProviderFactory;
 
         #region Constructors
 
@@ -16,27 +19,30 @@ namespace Reform.Logic
         {
             _connectionStringProvider = connectionStringProvider;
             _metadataProvider = metadataProvider;
+            _dbProviderFactory = MySqlClientFactory.Instance;
         }
 
         #endregion
 
         #region Interface Implementation
 
-        public SqlConnection GetConnection()
+        public IDbConnection GetConnection()
         {
             string connectionString = _connectionStringProvider.GetConnectionString(_metadataProvider.DatabaseName);
 
             try
             {
-                var connection = new SqlConnection(connectionString);
+                var connection = _dbProviderFactory.CreateConnection();
+                if (connection == null)
+                    throw new ApplicationException("Failed to create database connection");
 
+                connection.ConnectionString = connectionString;
                 connection.Open();
-
                 return connection;
             }
             catch (Exception ex)
             {
-                throw new ApplicationException($"Failed to open SqlConnection using connection string: {connectionString}", ex);
+                throw new ApplicationException($"Failed to open database connection using connection string: {connectionString}", ex);
             }
         }
 

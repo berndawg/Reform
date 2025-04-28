@@ -2,9 +2,11 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Data.SqlClient;
+using System.Data.Common;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Reflection;
+using MySql.Data.MySqlClient;
 using Reform.Extensions;
 using Reform.Interfaces;
 using Reform.Objects;
@@ -18,6 +20,7 @@ namespace Reform.Logic
         private readonly IMetadataProvider<T> _metadataProvider;
         private readonly ICommandBuilder<T> _commandBuilder;
         private readonly IDebugLogger _debugLogger;
+        private readonly DbProviderFactory _dbProviderFactory;
 
         #endregion
 
@@ -28,6 +31,7 @@ namespace Reform.Logic
             _metadataProvider = metadataProvider;
             _commandBuilder = commandBuilder;
             _debugLogger = debugLogger;
+            _dbProviderFactory = MySqlClientFactory.Instance;
         }
 
         #endregion
@@ -36,17 +40,17 @@ namespace Reform.Logic
 
         #region Exists
 
-        public int Count(SqlConnection connection, List<Filter> filters)
+        public int Count(IDbConnection connection, Query<T> query)
         {
-            using (SqlCommand command = _commandBuilder.GetCountCommand(connection, filters))
+            using (IDbCommand command = _commandBuilder.GetCountCommand(connection, query))
             {
                 return Convert.ToInt32(ExecuteScalar(command));
             }
         }
 
-        public bool Exists(SqlConnection connection, List<Filter> filters)
+        public bool Exists(IDbConnection connection, Query<T> query)
         {
-            using (SqlCommand command = _commandBuilder.GetExistsCommand(connection, filters))
+            using (IDbCommand command = _commandBuilder.GetExistsCommand(connection, query))
             {
                 return Convert.ToBoolean(ExecuteScalar(command));
             }
@@ -56,18 +60,9 @@ namespace Reform.Logic
 
         #region Select
 
-        public IEnumerable<T> Select(SqlConnection connection, List<Filter> filters)
+        public IEnumerable<T> Select(IDbConnection connection, Query<T> query)
         {
-            return Select(connection, new QueryCriteria
-            {
-                Filters = filters,
-                PageCriteria = PageCriteria.All()
-            });
-        }
-
-        public IEnumerable<T> Select(SqlConnection connection, QueryCriteria queryCriteria)
-        {
-            using (SqlCommand command = _commandBuilder.GetSelectCommand(connection, queryCriteria))
+            using (IDbCommand command = _commandBuilder.GetSelectCommand(connection, query))
             {
                 return ExecuteReader(command);
             }
@@ -77,9 +72,9 @@ namespace Reform.Logic
 
         #region Insert
 
-        public void Insert(SqlConnection connection, T instance)
+        public void Insert(IDbConnection connection, T instance)
         {
-            using (SqlCommand command = _commandBuilder.GetInsertCommand(connection, instance))
+            using (IDbCommand command = _commandBuilder.GetInsertCommand(connection, instance))
             {
                 object id = ExecuteScalar(command);
 
@@ -92,24 +87,17 @@ namespace Reform.Logic
 
         #region Update
 
-        public void Update(SqlConnection connection, T instance)
+        public void Update(IDbConnection connection, T instance)
         {
-            var filters = new List<Filter>
+            using (IDbCommand command = _commandBuilder.GetUpdateCommand(connection, instance))
             {
-                Filter.EqualTo(_metadataProvider.PrimaryKeyPropertyName, _metadataProvider.GetPrimaryKeyValue(instance))
-            };
-
-            Update(connection, instance, filters);
+                ExecuteNonQuery(command);
+            }
         }
 
-        public void Update(SqlConnection connection, T instance, List<Filter> filters)
+        public void Update(IDbConnection connection, T instance, Query<T> query)
         {
-            var list = new List<T>(Select(connection, filters));
-
-            if (list.Count != 1)
-                throw new ApplicationException($"Expected to find 1 {typeof(T).Name} but found {list.Count} using the criteria: {filters.ToText()}");
-
-            using (SqlCommand command = _commandBuilder.GetUpdateCommand(connection, instance, list[0], filters))
+            using (IDbCommand command = _commandBuilder.GetUpdateCommand(connection, instance, query))
             {
                 ExecuteNonQuery(command);
             }
@@ -119,64 +107,75 @@ namespace Reform.Logic
 
         #region Delete
 
-        public void Delete(SqlConnection connection, T instance)
+        public void Delete(IDbConnection connection, T instance)
         {
-            string propertyName = _metadataProvider.PrimaryKeyPropertyName;
-            object propertyValue = _metadataProvider.GetPrimaryKeyValue(instance);
-
-            Delete(connection, new List<Filter>
+            using (IDbCommand command = _commandBuilder.GetDeleteCommand(connection, instance))
             {
-                Filter.EqualTo(propertyName, propertyValue)
-            });
+                ExecuteNonQuery(command);
+            }
         }
 
-        public void Delete(SqlConnection connection, List<Filter> filters)
+        public void Delete(IDbConnection connection, Query<T> query)
         {
-            using (SqlCommand command = _commandBuilder.GetDeleteCommand(connection, filters))
+            using (IDbCommand command = _commandBuilder.GetDeleteCommand(connection, query))
             {
-                command.ExecuteNonQuery();
+                ExecuteNonQuery(command);
             }
         }
 
         #endregion
 
-        public void Truncate(SqlConnection connection)
+        public void Truncate(IDbConnection connection)
         {
-            using (var command = new SqlCommand($"TRUNCATE TABLE [{_metadataProvider.SchemaName}].[{_metadataProvider.TableName}];", connection))
+            using (var transaction = connection.BeginTransaction())
             {
-                ExecuteNonQuery(command);
-            }
-        }
-
-        public void BulkInsert(SqlConnection connection, List<T> list)
-        {
-            using (var bulk = new SqlBulkCopy(connection))
-            {
-                bulk.DestinationTableName = $"[{_metadataProvider.SchemaName}].[{_metadataProvider.TableName}]";
-                bulk.WriteToServer(GetDataTable(list));
-            }
-        }
-
-        public void Merge(SqlConnection connection, List<T> list, List<Filter> filters)
-        {
-            string tempTableName = $"#{_metadataProvider.TableName}Temp";
-
-            string commandText = $"SELECT * INTO {tempTableName} FROM [{_metadataProvider.SchemaName}].[{_metadataProvider.TableName}] WHERE 1=2";
-
-            using (var command = new SqlCommand(commandText, connection))
-            {
-                ExecuteNonQuery(command);
-            }
-
-            using (SqlCommand command = _commandBuilder.GetMergeCommand(connection, tempTableName, filters))
-            {
-                using (var bulk = new SqlBulkCopy(connection))
+                try
                 {
-                    bulk.DestinationTableName = tempTableName;
-                    bulk.WriteToServer(GetDataTable(list));
-
-                    ExecuteNonQuery(command);
+                    using (var command = connection.CreateCommand())
+                    {
+                        command.Transaction = transaction;
+                        command.CommandText = $"TRUNCATE TABLE {_metadataProvider.SchemaName}.{_metadataProvider.TableName};";
+                        ExecuteNonQuery(command);
+                    }
+                    transaction.Commit();
                 }
+                catch
+                {
+                    transaction.Rollback();
+                    throw;
+                }
+            }
+        }
+
+        public void BulkInsert(IDbConnection connection, List<T> list)
+        {
+            using (var transaction = connection.BeginTransaction())
+            {
+                try
+                {
+                    foreach (T item in list)
+                    {
+                        using (IDbCommand command = _commandBuilder.GetInsertCommand(connection, item))
+                        {
+                            command.Transaction = transaction;
+                            ExecuteNonQuery(command);
+                        }
+                    }
+                    transaction.Commit();
+                }
+                catch
+                {
+                    transaction.Rollback();
+                    throw;
+                }
+            }
+        }
+
+        public void Merge(IDbConnection connection, List<T> list, Query<T> query)
+        {
+            using (IDbCommand command = _commandBuilder.GetMergeCommand(connection, list, query))
+            {
+                ExecuteNonQuery(command);
             }
         }
 
@@ -184,7 +183,7 @@ namespace Reform.Logic
 
         #region Helpers
 
-        private void ExecuteNonQuery(SqlCommand command)
+        private void ExecuteNonQuery(IDbCommand command)
         {
             WriteCommand(command);
 
@@ -194,7 +193,7 @@ namespace Reform.Logic
             }
         }
 
-        private object ExecuteScalar(SqlCommand command)
+        private object ExecuteScalar(IDbCommand command)
         {
             WriteCommand(command);
 
@@ -204,14 +203,12 @@ namespace Reform.Logic
             }
         }
 
-        private IEnumerable<T> ExecuteReader(SqlCommand command)
+        private IEnumerable<T> ExecuteReader(IDbCommand command)
         {
             WriteCommand(command);
 
             using (new OperationTimer(_debugLogger))
             {
-                var list = new List<T>();
-
                 using (IDataReader dataReader = command.ExecuteReader())
                 {
                     PropertyInfo[] propertyInfos = null;
@@ -221,11 +218,9 @@ namespace Reform.Logic
                         if (propertyInfos == null)
                             propertyInfos = GetPropertyInfos(dataReader);
 
-                        list.Add(GetInstance(dataReader, propertyInfos));
+                        yield return GetInstance(dataReader, propertyInfos);
                     }
                 }
-
-                return list;
             }
         }
 
@@ -294,20 +289,21 @@ namespace Reform.Logic
             return dataRow;
         }
 
-        private void WriteCommand(SqlCommand command)
+        private void WriteCommand(IDbCommand command)
         {
             WriteLine(command.CommandText);
 
-            foreach (SqlParameter param in command.Parameters)
+            foreach (IDataParameter param in command.Parameters)
             {
                 WriteLine($"@{param.ParameterName} = {param.Value}");
             }
         }
 
-        private void WriteLine(string stringValue)
+        private void WriteLine(string text)
         {
-            _debugLogger.WriteLine(stringValue);
+            _debugLogger.WriteLine(text);
         }
+
         #endregion
     }
- }
+}

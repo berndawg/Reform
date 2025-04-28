@@ -10,7 +10,7 @@ namespace ReformTests.Logic
     {
         public string GenerateCode(string tableName)
         {
-            IEnumerable<Metadata> metadataList = Select(Filter.EqualTo(nameof(Metadata.ObjectName), tableName));
+            IEnumerable<Metadata> metadataList = Select(Filter.EqualTo<Metadata>(nameof(Metadata.ObjectName), tableName));
 
             var stringBuilder = new StringBuilder();
 

@@ -1,18 +1,30 @@
 ﻿// Copyright (c) 2020 Bernie Seabrook. All Rights Reserved.
+using System;
 using System.Collections.Generic;
+using System.Linq.Expressions;
 using Reform.Objects;
 
 namespace Reform.Interfaces
 {
-    // ReSharper disable once UnusedTypeParameter
-    public interface ISqlBuilder<T>
+    public interface ISqlBuilder<T> where T : class
     {
-        string GetCountSql(List<Filter> filters, out Dictionary<string, object> parameterDictionary);
-        string GetExistsSql(List<Filter> filters, out Dictionary<string, object> parameterDictionary);
-        string GetSelectSql(QueryCriteria queryCriteria, ref Dictionary<string, object> parameterDictionary);
+        string GetCountSql(Query<T> query, out Dictionary<string, object> parameterDictionary);
+        
+        string GetExistsSql(Query<T> query, out Dictionary<string, object> parameterDictionary);
+        
+        string GetSelectSql(Query<T> query, out Dictionary<string, object> parameterDictionary);
+        
         string GetInsertSql(T instance, ref Dictionary<string, object> parameterDictionary);
-        string GetUpdateSql(T instance, object original, ref Dictionary<string, object> parameterDictionary, List<Filter> filters);
-        string GetDeleteSql(List<Filter> filters, ref Dictionary<string, object> parameterDictionary);
-        string GetMergeSql(string tempTableName, List<Filter> filters, ref Dictionary<string, object> parameterDictionary);
+        
+        string GetUpdateSql(T instance, T original, Expression<Func<T, bool>> predicate, ref Dictionary<string, object> parameterDictionary);
+        string GetUpdateSql(T instance, Query<T> query, out Dictionary<string, object> parameterDictionary);
+        
+        string GetDeleteSql(Query<T> query, out Dictionary<string, object> parameterDictionary);
+        
+        string GetMergeSql(T instance, Expression<Func<T, bool>> predicate, ref Dictionary<string, object> parameterDictionary);
+        string GetMergeSql(List<T> instances, Query<T> query, out Dictionary<string, object> parameterDictionary);
+        
+        string GetLastInsertIdSql();
+        string GetTruncateTableSql();
     }
 }
