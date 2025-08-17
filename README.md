@@ -165,7 +165,7 @@ Key areas for contribution:
 
 Reform is an ORM that's extremely easy to use and extend. Stop writing SQL! Use the IReform interface instead. It includes methods like Count, Exists, Select, Insert, Update, Delete, Merge, and even BulkInsert. It supports Symmetric Key entryption and it's fully customizable allowing it to be used even without SQL Server. 
 
-Reform puts the C# developer back in control of how data is shaped and manipulated. Define POCOs, add Reform code attributes, and you're done. It includes support for validation and transactions and it's the perfect tool for ETL applications. Forget all about Martin Fowler's silly IRepository pattern. Use IReform instead. You'll be glad you did!
+Reform puts the C# developer back in control of how data is shaped and manipulated. Define POCOs, add Reform code attributes, and you're done. It includes support for validation and transactions and it’s the perfect tool for ETL applications.
 
 The IReform<T> interface includes the following methods:
 
