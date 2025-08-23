@@ -1,105 +1,196 @@
+﻿// Copyright (c) 2020 Bernie Seabrook. All Rights Reserved.
 using System;
-using System.Linq.Expressions;
+using System.Collections.Generic;
+using System.Runtime.Serialization;
+using Reform.Enum;
 
 namespace Reform.Objects
 {
-    public static class Filter
+    public class Filter
     {
-        public static Expression<Func<T, bool>> EqualTo<T>(string propertyName, object value)
+        #region Properties
+
+        [DataMember]
+        public string PropertyName { get; set; }
+
+        [DataMember]
+        public Operator Operator { get; set; }
+
+        [DataMember]
+        public object PropertyValue { get; set; }
+
+        [DataMember]
+        public Relationship? Relationship { get; set; }
+
+        [DataMember]
+        public Filter LeftChild { get; set; }
+
+        [DataMember]
+        public Filter RightChild { get; set; }
+
+        #endregion
+
+        #region Constructors
+
+        public Filter()
         {
-            var parameter = Expression.Parameter(typeof(T));
-            var property = Expression.Property(parameter, propertyName);
-            var constant = Expression.Constant(value);
-            var equal = Expression.Equal(property, constant);
-            return Expression.Lambda<Func<T, bool>>(equal, parameter);
         }
 
-        public static Expression<Func<T, bool>> NotEqualTo<T>(string propertyName, object value)
+        public Filter(string propertyName, Operator op)
         {
-            var parameter = Expression.Parameter(typeof(T));
-            var property = Expression.Property(parameter, propertyName);
-            var constant = Expression.Constant(value);
-            var notEqual = Expression.NotEqual(property, constant);
-            return Expression.Lambda<Func<T, bool>>(notEqual, parameter);
+            if (op != Operator.IsNull && op != Operator.IsNotNull)
+                throw new ArgumentException(string.Format("Don't call this constructor with operator '{0}'", op));
+
+            PropertyName = propertyName;
+            Operator = op;
+            PropertyValue = null;
         }
 
-        public static Expression<Func<T, bool>> GreaterThan<T>(string propertyName, object value)
+        public Filter(string propertyName, Operator op, object propertyValue)
         {
-            var parameter = Expression.Parameter(typeof(T));
-            var property = Expression.Property(parameter, propertyName);
-            var constant = Expression.Constant(value);
-            var greaterThan = Expression.GreaterThan(property, constant);
-            return Expression.Lambda<Func<T, bool>>(greaterThan, parameter);
+            if (op == Operator.IsNull || op == Operator.IsNotNull)
+                throw new ArgumentException(string.Format("Don't call this constructor with operator '{0}'", op));
+
+            PropertyName = propertyName;
+            Operator = op;
+            PropertyValue = propertyValue;
         }
 
-        public static Expression<Func<T, bool>> GreaterThanOrEqual<T>(string propertyName, object value)
+        #endregion
+
+        #region Operators
+
+        public static Filter operator !(Filter a)
         {
-            var parameter = Expression.Parameter(typeof(T));
-            var property = Expression.Property(parameter, propertyName);
-            var constant = Expression.Constant(value);
-            var greaterThanOrEqual = Expression.GreaterThanOrEqual(property, constant);
-            return Expression.Lambda<Func<T, bool>>(greaterThanOrEqual, parameter);
+            if (a == null)
+                return null;
+
+            return new Filter
+            {
+                Relationship = Enum.Relationship.Not,
+                LeftChild = a
+            };
         }
 
-        public static Expression<Func<T, bool>> LessThan<T>(string propertyName, object value)
+        public static Filter operator &(Filter a, Filter b)
         {
-            var parameter = Expression.Parameter(typeof(T));
-            var property = Expression.Property(parameter, propertyName);
-            var constant = Expression.Constant(value);
-            var lessThan = Expression.LessThan(property, constant);
-            return Expression.Lambda<Func<T, bool>>(lessThan, parameter);
+            if (a != null && b != null)
+            {
+                return new Filter
+                {
+                    Relationship = Enum.Relationship.And,
+                    LeftChild = a,
+                    RightChild = b
+                };
+            }
+
+            return a ?? b;
         }
 
-        public static Expression<Func<T, bool>> LessThanOrEqual<T>(string propertyName, object value)
+        public static Filter operator |(Filter a, Filter b)
         {
-            var parameter = Expression.Parameter(typeof(T));
-            var property = Expression.Property(parameter, propertyName);
-            var constant = Expression.Constant(value);
-            var lessThanOrEqual = Expression.LessThanOrEqual(property, constant);
-            return Expression.Lambda<Func<T, bool>>(lessThanOrEqual, parameter);
+            if (a != null && b != null)
+            {
+                return new Filter
+                {
+                    Relationship = Enum.Relationship.Or,
+                    LeftChild = a,
+                    RightChild = b
+                };
+            }
+
+            return a ?? b;
         }
 
-        public static Expression<Func<T, bool>> Contains<T>(string propertyName, string value)
+        #endregion
+
+        #region Static Methods
+
+        public static Filter In<T>(string key, List<T> values)
         {
-            var parameter = Expression.Parameter(typeof(T));
-            var property = Expression.Property(parameter, propertyName);
-            var constant = Expression.Constant(value);
-            var contains = Expression.Call(property, typeof(string).GetMethod("Contains", new[] { typeof(string) }), constant);
-            return Expression.Lambda<Func<T, bool>>(contains, parameter);
+            return In(key, values.ConvertAll(x => (object) x).ToArray());
         }
 
-        public static Expression<Func<T, bool>> StartsWith<T>(string propertyName, string value)
+        public static Filter In(string key, params object[] values)
         {
-            var parameter = Expression.Parameter(typeof(T));
-            var property = Expression.Property(parameter, propertyName);
-            var constant = Expression.Constant(value);
-            var startsWith = Expression.Call(property, typeof(string).GetMethod("StartsWith", new[] { typeof(string) }), constant);
-            return Expression.Lambda<Func<T, bool>>(startsWith, parameter);
+            return new Filter(key, Operator.In, values);
         }
 
-        public static Expression<Func<T, bool>> EndsWith<T>(string propertyName, string value)
+        public static Filter NotIn<T>(string key, List<T> values)
         {
-            var parameter = Expression.Parameter(typeof(T));
-            var property = Expression.Property(parameter, propertyName);
-            var constant = Expression.Constant(value);
-            var endsWith = Expression.Call(property, typeof(string).GetMethod("EndsWith", new[] { typeof(string) }), constant);
-            return Expression.Lambda<Func<T, bool>>(endsWith, parameter);
+            return NotIn(key, values.ConvertAll(x => (object) x).ToArray());
         }
 
-        public static Expression<Func<T, bool>> IsNull<T>(string propertyName)
+        public static Filter NotIn(string key, params object[] values)
         {
-            var parameter = Expression.Parameter(typeof(T));
-            var property = Expression.Property(parameter, propertyName);
-            var isNull = Expression.Equal(property, Expression.Constant(null));
-            return Expression.Lambda<Func<T, bool>>(isNull, parameter);
+            return new Filter(key, Operator.NotIn, values);
         }
 
-        public static Expression<Func<T, bool>> IsNotNull<T>(string propertyName)
+        public static Filter EqualTo(string key, object value)
         {
-            var parameter = Expression.Parameter(typeof(T));
-            var property = Expression.Property(parameter, propertyName);
-            var isNotNull = Expression.NotEqual(property, Expression.Constant(null));
-            return Expression.Lambda<Func<T, bool>>(isNotNull, parameter);
+            return new Filter(key, Operator.EqualTo, value);
         }
+
+        public static Filter NotEqualTo(string key, object value)
+        {
+            return new Filter(key, Operator.NotEqualTo, value);
+        }
+
+        public static Filter Like(string key, object value)
+        {
+            return new Filter(key, Operator.Like, value);
+        }
+
+        public static Filter NotLike(string key, object value)
+        {
+            return new Filter(key, Operator.NotLike, value);
+        }
+
+        public static Filter StartsWith(string key, object value)
+        {
+            return new Filter(key, Operator.Like, $"{value}%");
+        }
+
+        public static Filter EndsWith(string key, object value)
+        {
+            return new Filter(key, Operator.Like, $"%{value}");
+        }
+
+        public static Filter Contains(string key, object value)
+        {
+            return new Filter(key, Operator.Like, $"%{value}%");
+        }
+
+        public static Filter GreaterThan(string key, object value)
+        {
+            return new Filter(key, Operator.GreaterThan, value);
+        }
+
+        public static Filter GreaterThanOrEqualTo(string key, object value)
+        {
+            return new Filter(key, Operator.GreaterThanOrEqualTo, value);
+        }
+
+        public static Filter LessThan(string key, object value)
+        {
+            return new Filter(key, Operator.LessThan, value);
+        }
+
+        public static Filter LessThanOrEqualTo(string key, object value)
+        {
+            return new Filter(key, Operator.LessThanOrEqualTo, value);
+        }
+
+        public static Filter IsNull(string key)
+        {
+            return new Filter(key, Operator.IsNull);
+        }
+
+        public static Filter IsNotNull(string key)
+        {
+            return new Filter(key, Operator.IsNotNull);
+        }
+
+        #endregion
     }
-} 
+}

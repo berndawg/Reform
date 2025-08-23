@@ -1,9 +1,8 @@
 ﻿// Copyright (c) 2020 Bernie Seabrook. All Rights Reserved.
 using System;
 using System.Collections.Generic;
-using System.Data;
+using System.Data.SqlClient;
 using System.Linq;
-using System.Linq.Expressions;
 using System.Transactions;
 using Reform.Extensions;
 using Reform.Interfaces;
@@ -20,8 +19,6 @@ namespace Reform.Logic
         private readonly IDataAccess<T> _dataAccess;
         private readonly IValidator<T> _validator;
         private readonly IScopeProvider _scopeProvider;
-        private readonly ICommandBuilder<T> _commandBuilder;
-        private readonly IMapper _mapper;
 
         #endregion
 
@@ -31,29 +28,25 @@ namespace Reform.Logic
         public Reform() : this(Reformer.Resolve<IConnectionProvider<T>>(),
                                Reformer.Resolve<IDataAccess<T>>(),
                                Reformer.Resolve<IValidator<T>>(),
-                               Reformer.Resolve<IScopeProvider>(),
-                               Reformer.Resolve<ICommandBuilder<T>>(),
-                               Reformer.Resolve<IMapper>())
+                               Reformer.Resolve<IScopeProvider>())
         {
         }
 
-        public Reform(IConnectionProvider<T> connectionProvider, IDataAccess<T> dataAccess, IValidator<T> validator, IScopeProvider scopeProvider, ICommandBuilder<T> commandBuilder, IMapper mapper)
+        public Reform(IConnectionProvider<T> connectionProvider, IDataAccess<T> dataAccess, IValidator<T> validator, IScopeProvider scopeProvider)
         {
             _connectionProvider = connectionProvider;
             _dataAccess = dataAccess;
             _validator = validator;
             _scopeProvider = scopeProvider;
-            _commandBuilder = commandBuilder;
-            _mapper = mapper;
         }
 
         #endregion
 
         #region Interface Implementation
 
-        #region Connection related
+        #region SqlConnection related
 
-        public IDbConnection GetConnection()
+        public SqlConnection GetConnection()
         {
             return OnGetConnection();
         }
@@ -73,108 +66,82 @@ namespace Reform.Logic
 
         #region Insert
 
-        public void Insert(T item)
-        {
-            using (var scope = GetScope())
-            {
-                using (var connection = GetConnection())
-                {
-                    Insert(connection, item);
-                }
-                scope.Complete();
-            }
-        }
-
         public void Insert(List<T> items)
         {
-            using (var scope = GetScope())
+            using (TransactionScope scope = GetScope())
             {
-                using (var connection = GetConnection())
-                {
+                using (SqlConnection connection = GetConnection())
                     Insert(connection, items);
-                }
+
                 scope.Complete();
             }
         }
 
-        public void Insert(IDbConnection connection, T item)
+        public void Insert(SqlConnection connection, List<T> items)
+        {
+            foreach (T item in items)
+                Insert(connection, item);
+        }
+
+        public void Insert(T item)
+        {
+            using (TransactionScope scope = GetScope())
+            {
+                using (SqlConnection connection = GetConnection())
+                {
+                    Insert(connection, item);
+                    scope.Complete();
+                }
+            }
+        }
+
+        public void Insert(SqlConnection connection, T item)
         {
             OnBeforeInsert(connection, item);
             OnValidate(connection, item);
-            _dataAccess.Insert(connection, item);
+            OnInsert(connection, item);
             OnAfterInsert(connection, item);
-        }
-
-        public void Insert(IDbConnection connection, List<T> items)
-        {
-            foreach (var item in items)
-            {
-                Insert(connection, item);
-            }
         }
 
         #endregion
 
         #region Update
 
-        public void Update(T item)
-        {
-            using (var scope = GetScope())
-            {
-                using (var connection = GetConnection())
-                {
-                    Update(connection, item);
-                }
-                scope.Complete();
-            }
-        }
-
         public void Update(List<T> list)
         {
-            using (var scope = GetScope())
+            using (TransactionScope scope = GetScope())
             {
-                using (var connection = GetConnection())
-                {
+                using (SqlConnection connection = GetConnection())
                     Update(connection, list);
-                }
+
                 scope.Complete();
             }
         }
 
-        public void Update(IDbConnection connection, T item)
+        public void Update(SqlConnection connection, List<T> items)
         {
-            OnBeforeUpdate(connection, item);
-            OnValidate(connection, item);
-            _dataAccess.Update(connection, item);
-            OnAfterUpdate(connection, item);
-        }
-
-        public void Update(IDbConnection connection, List<T> list)
-        {
-            foreach (var item in list)
+            foreach (T item in items)
             {
                 Update(connection, item);
             }
         }
 
-        public void Update(T item, Expression<Func<T, bool>> predicate)
+        public void Update(T item)
         {
-            using (var scope = GetScope())
+            using (TransactionScope scope = GetScope())
             {
-                using (var connection = GetConnection())
-                {
-                    Update(connection, item, predicate);
-                }
+                using (SqlConnection connection = GetConnection())
+                    Update(connection, item);
+
                 scope.Complete();
             }
         }
 
-        public void Update(IDbConnection connection, T item, Expression<Func<T, bool>> predicate)
+        public void Update(SqlConnection connection, T item)
         {
-            var query = new Query<T>().Where(predicate);
             OnBeforeUpdate(connection, item);
             OnValidate(connection, item);
-            _dataAccess.Update(connection, item, query);
+            OnUpdate(connection, item);
             OnAfterUpdate(connection, item);
         }
 
@@ -184,59 +151,47 @@ namespace Reform.Logic
 
         public void Delete(T item)
         {
-            using (var scope = GetScope())
+            using (TransactionScope scope = GetScope())
             {
-                using (var connection = GetConnection())
+                using (SqlConnection connection = GetConnection())
                 {
-                    Delete(connection, item);
+                    OnBeforeDelete(connection, item);
+                    OnDelete(connection, item);
+                    OnAfterDelete(connection, item);
                 }
+
                 scope.Complete();
             }
+        }
+
+        public void Delete(SqlConnection connection, T item)
+        {
+            OnBeforeDelete(connection, item);
+            OnDelete(connection, item);
+            OnAfterDelete(connection, item);
         }
 
         public void Delete(List<T> list)
         {
-            using (var scope = GetScope())
+            using (SqlConnection connection = GetConnection())
             {
-                using (var connection = GetConnection())
+                Delete(connection, list);
+            }
+        }
+
+        public void Delete(SqlConnection connection, List<T> list)
+        {
+            using (TransactionScope scope = GetScope())
+            {
+                foreach (T item in list)
                 {
-                    Delete(connection, list);
+                    OnBeforeDelete(connection, item);
+                    OnDelete(connection, item);
+                    OnAfterDelete(connection, item);
                 }
+
                 scope.Complete();
             }
-        }
-
-        public void Delete(IDbConnection connection, T item)
-        {
-            OnBeforeDelete(connection, item);
-            _dataAccess.Delete(connection, item);
-            OnAfterDelete(connection, item);
-        }
-
-        public void Delete(IDbConnection connection, List<T> list)
-        {
-            foreach (var item in list)
-            {
-                Delete(connection, item);
-            }
-        }
-
-        public void Delete(Expression<Func<T, bool>> predicate)
-        {
-            using (var scope = GetScope())
-            {
-                using (var connection = GetConnection())
-                {
-                    Delete(connection, predicate);
-                }
-                scope.Complete();
-            }
-        }
-
-        public void Delete(IDbConnection connection, Expression<Func<T, bool>> predicate)
-        {
-            var query = new Query<T>().Where(predicate);
-            _dataAccess.Delete(connection, query);
         }
 
         #endregion
@@ -245,208 +200,217 @@ namespace Reform.Logic
 
         public int Count()
         {
-            using (var connection = GetConnection())
+            using (SqlConnection connection = GetConnection())
             {
-                return _dataAccess.Count(connection, new Query<T>());
+                return Count(connection);
             }
         }
 
-        public int Count(IDbConnection connection)
+        public int Count(SqlConnection connection)
         {
-            return _dataAccess.Count(connection, new Query<T>());
+            return OnCount(connection, new List<Filter>());
         }
 
-        public int Count(Expression<Func<T, bool>> predicate)
+        public int Count(List<Filter> filters)
         {
-            using (var connection = GetConnection())
+            using (SqlConnection connection = GetConnection())
             {
-                return Count(connection, predicate);
+                return OnCount(connection, filters);
             }
         }
 
-        public int Count(IDbConnection connection, Expression<Func<T, bool>> predicate)
+        public int Count(SqlConnection connection, List<Filter> filters)
         {
-            var query = new Query<T>().Where(predicate);
-            return _dataAccess.Count(connection, query);
+            return OnCount(connection, filters);
         }
 
         #endregion
 
         #region Exists
 
-        public bool Exists(Expression<Func<T, bool>> predicate)
+        public bool Exists(SqlConnection connection, List<Filter> filters)
         {
-            using (var connection = GetConnection())
+            return OnExists(connection, filters);
+        }
+
+        public bool Exists(Filter filter)
+        {
+            return Exists(new List<Filter> { filter });
+        }
+
+        public bool Exists(List<Filter> filters)
+        {
+            using (SqlConnection connection = GetConnection())
             {
-                return Exists(connection, predicate);
+                return OnExists(connection, filters);
             }
         }
 
-        public bool Exists(IDbConnection connection, Expression<Func<T, bool>> predicate)
+        #endregion
+
+        #region SelectSingle
+
+        public T SelectSingle(List<Filter> filters)
         {
-            var query = new Query<T>().Where(predicate);
-            return _dataAccess.Exists(connection, query);
+            IEnumerable<T> list = Select(filters).ToList();
+
+            if (list.Count() == 1)
+                return list.First();
+
+            throw new ApplicationException($"Expected to find 1 {typeof(T).Name} but found {list.Count()} using the criteria: {filters.ToText()}");
+        }
+
+        public T SelectSingle(List<Filter> filters, T defaultObject)
+        {
+            IEnumerable<T> list = Select(filters).ToList();
+
+            if (list.Count() > 1)
+                throw new ApplicationException($"Expected to find 1 or 0 {typeof(T).Name} but found {list.Count()} using the criteria: {filters.ToText()}");
+
+            return list.Count() == 1 ? list.First() : defaultObject;
+        }
+
+        public T SelectSingle(SqlConnection connection, List<Filter> filters)
+        {
+            IEnumerable<T> list = Select(connection, filters).ToList();
+
+            if (list.Count() == 1)
+                return list.First();
+
+            throw new ApplicationException($"Expected to find 1 {typeof(T).Name} but found {list.Count()} using the criteria: {filters.ToText()}");
+        }
+
+        public T SelectSingle(SqlConnection connection, List<Filter> filters, T defaultObject)
+        {
+            IEnumerable<T> list = Select(connection, filters).ToList();
+
+            if (list.Count() > 1)
+                throw new ApplicationException($"Expected to find 1 or 0 {typeof(T).Name} but found {list.Count()} using the criteria: {filters.ToText()}");
+
+            return list.Count() == 1 ? list.First() : defaultObject;
         }
 
         #endregion
 
         #region Select
 
-        public T SelectSingle(Expression<Func<T, bool>> predicate)
-        {
-            return SelectSingle(predicate, null);
-        }
-
-        public T SelectSingle(Expression<Func<T, bool>> predicate, T defaultObject)
-        {
-            using (var connection = GetConnection())
-            {
-                return SelectSingle(connection, predicate, defaultObject);
-            }
-        }
-
-        public T SelectSingle(IDbConnection connection, Expression<Func<T, bool>> predicate)
-        {
-            return SelectSingle(connection, predicate, null);
-        }
-
-        public T SelectSingle(IDbConnection connection, Expression<Func<T, bool>> predicate, T defaultObject)
-        {
-            var query = new Query<T>().Where(predicate);
-            var list = _dataAccess.Select(connection, query).ToList();
-
-            if (list.Count > 1)
-                throw new ApplicationException($"Expected to find 0 or 1 {typeof(T).Name} but found {list.Count}");
-
-            return list.Count == 0 ? defaultObject : list[0];
-        }
-
         public IEnumerable<T> Select()
         {
-            return Select(new Query<T>());
+            return Select(new List<Filter>());
         }
 
-        public IEnumerable<T> Select(Expression<Func<T, bool>> predicate)
+        public IEnumerable<T> Select(QueryCriteria queryCriteria, out int totalCount)
         {
-            using (var connection = GetConnection())
+            totalCount = Count(queryCriteria.Filters);
+            return Select(queryCriteria);
+        }
+
+        public IEnumerable<T> Select(SqlConnection connection, List<Filter> filters)
+        {
+            return Select(connection, new QueryCriteria { Filters = filters });
+        }
+
+        public IEnumerable<T> Select(Filter filter)
+        {
+            return Select(new List<Filter> { filter });
+        }
+
+        public IEnumerable<T> Select(List<Filter> filters)
+        {
+            return Select(new QueryCriteria { Filters = filters });
+        }
+
+        public IEnumerable<T> Select(QueryCriteria queryCriteria)
+        {
+            using (SqlConnection connection = GetConnection())
             {
-                return Select(connection, predicate);
+                return Select(connection, queryCriteria);
             }
         }
 
-        public IEnumerable<T> Select(Query<T> query)
+        public IEnumerable<T> Select(SqlConnection connection, QueryCriteria queryCriteria)
         {
-            using (var connection = GetConnection())
-            {
-                return Select(connection, query);
-            }
+            return OnSelect(connection, queryCriteria);
         }
-
-        public IEnumerable<T> Select(IDbConnection connection, Expression<Func<T, bool>> predicate)
-        {
-            var query = new Query<T>().Where(predicate);
-            return _dataAccess.Select(connection, query);
-        }
-
-        public IEnumerable<T> Select(IDbConnection connection, Query<T> query)
-        {
-            return _dataAccess.Select(connection, query);
-        }
-
-        #endregion
-
-        #region Truncate
 
         public void Truncate()
         {
-            using (var connection = GetConnection())
+            using (SqlConnection connection = GetConnection())
             {
                 Truncate(connection);
             }
         }
 
-        public void Truncate(IDbConnection connection)
+        public void Truncate(SqlConnection connection)
         {
-            _dataAccess.Truncate(connection);
+            OnTruncate(connection);
         }
-
-        #endregion
-
-        #region BulkInsert
 
         public void BulkInsert(List<T> list)
         {
-            using (var scope = GetScope())
+            using (TransactionScope scope = GetScope())
             {
-                using (var connection = GetConnection())
+                using (SqlConnection connection = GetConnection())
                 {
                     BulkInsert(connection, list);
                 }
+
                 scope.Complete();
             }
         }
 
-        public void BulkInsert(IDbConnection connection, List<T> list)
+        public void BulkInsert(SqlConnection connection, List<T> list)
         {
-            foreach (var item in list)
-            {
+            foreach (T item in list)
                 OnValidate(connection, item);
-            }
-            _dataAccess.BulkInsert(connection, list);
+
+            OnBulkInsert(connection, list);
         }
-
-        #endregion
-
-        #region Merge
 
         public void Merge(List<T> list)
         {
-            using (var scope = GetScope())
+            using (TransactionScope scope = GetScope())
             {
-                using (var connection = GetConnection())
+                using (SqlConnection connection = GetConnection())
                 {
-                    Merge(connection, list);
+                    Merge(connection, list, new List<Filter>());
                 }
+
                 scope.Complete();
             }
         }
 
-        public void Merge(IDbConnection connection, List<T> list)
+        public void Merge(List<T> list, Filter filter)
         {
-            foreach (var item in list)
-            {
-                OnValidate(connection, item);
-            }
-            _dataAccess.Merge(connection, list, new Query<T>());
+            Merge(list, new List<Filter> { filter });
         }
 
-        public void Merge(List<T> list, Expression<Func<T, bool>> predicate)
+        public void Merge(List<T> list, List<Filter> filters)
         {
-            using (var scope = GetScope())
+            using (TransactionScope scope = GetScope())
             {
-                using (var connection = GetConnection())
+                using (SqlConnection connection = GetConnection())
                 {
-                    Merge(connection, list, predicate);
+                    Merge(connection, list, filters);
                 }
+
                 scope.Complete();
             }
         }
 
-        public void Merge(IDbConnection connection, List<T> list, Expression<Func<T, bool>> predicate)
+        public void Merge(SqlConnection connection, List<T> list, List<Filter> filters)
         {
-            var query = new Query<T>().Where(predicate);
-            foreach (var item in list)
-            {
+            foreach (T item in list)
                 OnValidate(connection, item);
-            }
-            _dataAccess.Merge(connection, list, query);
+
+            OnMerge(connection, list, filters);
         }
 
         #endregion
 
         #region Overrideables
 
-        protected virtual IDbConnection OnGetConnection()
+        protected virtual SqlConnection OnGetConnection()
         {
             return _connectionProvider.GetConnection();
         }
@@ -456,33 +420,78 @@ namespace Reform.Logic
             return _scopeProvider.GetScope();
         }
 
-        protected virtual void OnValidate(IDbConnection connection, T item)
+        protected virtual void OnValidate(SqlConnection connection, T item)
         {
             _validator.Validate(item);
         }
 
-        protected virtual void OnBeforeInsert(IDbConnection connection, T item)
+        protected virtual int OnCount(SqlConnection connection, List<Filter> filters)
+        {
+            return _dataAccess.Count(connection, filters);
+        }
+
+        protected virtual bool OnExists(SqlConnection connection, List<Filter> filters)
+        {
+            return _dataAccess.Exists(connection, filters);
+        }
+
+        protected virtual IEnumerable<T> OnSelect(SqlConnection connection, QueryCriteria queryCriteria)
+        {
+            return _dataAccess.Select(connection, queryCriteria);
+        }
+
+        protected virtual void OnInsert(SqlConnection connection, T item)
+        {
+            _dataAccess.Insert(connection, item);
+        }
+
+        protected virtual void OnUpdate(SqlConnection connection, T item)
+        {
+            _dataAccess.Update(connection, item);
+        }
+
+        protected virtual void OnDelete(SqlConnection connection, T item)
+        {
+            _dataAccess.Delete(connection, item);
+        }
+
+        protected virtual void OnBeforeInsert(SqlConnection connection, T item)
         {
         }
 
-        protected virtual void OnBeforeUpdate(IDbConnection connection, T item)
+        protected virtual void OnBeforeUpdate(SqlConnection connection, T item)
         {
         }
 
-        protected virtual void OnBeforeDelete(IDbConnection connection, T item)
+        protected virtual void OnAfterInsert(SqlConnection connection, T item)
         {
         }
 
-        protected virtual void OnAfterInsert(IDbConnection connection, T item)
+        protected virtual void OnAfterUpdate(SqlConnection connection, T item)
         {
         }
 
-        protected virtual void OnAfterUpdate(IDbConnection connection, T item)
+        protected virtual void OnBeforeDelete(SqlConnection connection, T item)
         {
         }
 
-        protected virtual void OnAfterDelete(IDbConnection connection, T item)
+        protected virtual void OnAfterDelete(SqlConnection connection, T item)
         {
+        }
+
+        protected virtual void OnTruncate(SqlConnection connection)
+        {
+            _dataAccess.Truncate(connection);
+        }
+
+        protected virtual void OnBulkInsert(SqlConnection connection, List<T> list)
+        {
+            _dataAccess.BulkInsert(connection, list);
+        }
+
+        protected virtual void OnMerge(SqlConnection connection, List<T> list, List<Filter> filters)
+        {
+            _dataAccess.Merge(connection, list, filters);
         }
 
         #endregion

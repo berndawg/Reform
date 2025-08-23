@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Linq.Expressions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Reform.Interfaces;
 using Reform.Logic;
@@ -19,7 +18,6 @@ namespace ReformTests
         {
             Reformer.RegisterType(typeof(IConnectionStringProvider), typeof(TestConnectionStringProvider));
             Reformer.RegisterType(typeof(IDebugLogger), typeof(TestDebugLogger));
-            Reformer.RegisterType(typeof(ISqlBuilder<>), typeof(MySqlBuilder<>));
         }
 
         [TestMethod]
@@ -58,10 +56,10 @@ namespace ReformTests
             Assert.AreEqual(3, airportLogic.Count());
 
             // LIM should be one of the airports
-            Assert.IsTrue(airportLogic.Exists(a => a.AirportCode == "LIM"));
+            Assert.IsTrue(airportLogic.Exists(Filter.EqualTo(nameof(Airport.AirportCode), "LIM")));
 
             // LAX should not be one of them
-            Assert.IsFalse(airportLogic.Exists(a => a.AirportCode == "LAX"));
+            Assert.IsFalse(airportLogic.Exists(Filter.EqualTo(nameof(Airport.AirportCode), "LAX")));
 
             // add (merge) 2 more American airports 
             airports.Add(new Airport { AirportCode = "AUS", AirportName = "Austin", CountryId = 2 });
@@ -73,18 +71,20 @@ namespace ReformTests
             Assert.AreEqual(5, airportLogic.Count());
 
             // LAX and AUS should both exist now
-            Assert.IsTrue(airportLogic.Exists(a => a.AirportCode == "LAX"));
-            Assert.IsTrue(airportLogic.Exists(a => a.AirportCode == "AUS"));
+            Assert.IsTrue(airportLogic.Exists(Filter.EqualTo(nameof(Airport.AirportCode), "LAX")));
+            Assert.IsTrue(airportLogic.Exists(Filter.EqualTo(nameof(Airport.AirportCode), "AUS")));
+
+            var usaOnlyFilter = Filter.EqualTo(nameof(Airport.CountryId), 2);
 
             // Get all airports in USA, should be exactly 2 (LAX and AUS)
-            List<Airport> usAirports = airportLogic.Select(a => a.CountryId == 2).ToList();
+            List<Airport> usAirports = airportLogic.Select(usaOnlyFilter).ToList();
             Assert.AreEqual(2, usAirports.Count);
 
             // delete one of the USA airports (doesn't matter which)
             usAirports.Remove(usAirports[0]);
 
             // The merge should only delete 1 of the US airports because we gave it a "USA only" filter
-            airportLogic.Merge(usAirports, a => a.CountryId == 2);
+            airportLogic.Merge(usAirports, usaOnlyFilter);
 
             // There should be 4 airports
             Assert.AreEqual(4, airportLogic.Count());
@@ -110,7 +110,7 @@ namespace ReformTests
     {
         public string GetConnectionString(string databaseName)
         {
-            return $"Server=localhost;Database={databaseName};Uid=root;Pwd=your_password;";
+            return $"Data Source=.;Initial Catalog={databaseName};Integrated Security=True";
         }
     }
 

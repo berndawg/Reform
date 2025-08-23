@@ -1,28 +1,18 @@
-﻿// Copyright (c) 2020 Bernie Seabrook. All Rights Reserved.
-using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Data;
-using System.Linq.Expressions;
+using System.Data.SqlClient;
 using Reform.Objects;
 
 namespace Reform.Interfaces
 {
-    public interface ICommandBuilder<T> where T : class
+    internal interface ICommandBuilder<in T> where T : class
     {
-        IDbCommand GetCountCommand(IDbConnection connection, Query<T> query);
-        
-        IDbCommand GetExistsCommand(IDbConnection connection, Query<T> query);
-        
-        IDbCommand GetSelectCommand(IDbConnection connection, Query<T> query);
-        
-        IDbCommand GetInsertCommand(IDbConnection connection, T instance);
-        
-        IDbCommand GetUpdateCommand(IDbConnection connection, T instance);
-        IDbCommand GetUpdateCommand(IDbConnection connection, T instance, Query<T> query);
-        
-        IDbCommand GetDeleteCommand(IDbConnection connection, T instance);
-        IDbCommand GetDeleteCommand(IDbConnection connection, Query<T> query);
-        
-        IDbCommand GetMergeCommand(IDbConnection connection, List<T> list, Query<T> query);
+        SqlCommand GetCountCommand(SqlConnection connection, List<Filter> filters);
+        SqlCommand GetExistsCommand(SqlConnection connection, List<Filter> filters);
+        SqlCommand GetSelectCommand(SqlConnection connection, QueryCriteria queryCriteria);
+        SqlCommand GetInsertCommand(SqlConnection connection, T instance);
+        SqlCommand GetUpdateCommand(SqlConnection connection, T instance, T original, List<Filter> filters);
+        SqlCommand GetDeleteCommand(SqlConnection connection, List<Filter> filters);
+        SqlCommand GetMergeCommand(SqlConnection connection, string tempTableName, List<Filter> filters);
     }
 }

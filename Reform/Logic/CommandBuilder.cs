@@ -1,141 +1,108 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Data.Common;
-using System.Linq.Expressions;
-using MySql.Data.MySqlClient;
+using System.Data.SqlClient;
 using Reform.Interfaces;
 using Reform.Objects;
 
 namespace Reform.Logic
 {
-    public class CommandBuilder<T> : ICommandBuilder<T> where T : class
+    internal sealed class CommandBuilder<T> : ICommandBuilder<T> where T : class
     {
         #region Fields
 
         private readonly IMetadataProvider<T> _metadataProvider;
         private readonly ISqlBuilder<T> _sqlBuilder;
-        private readonly DbProviderFactory _dbProviderFactory;
 
         #endregion
 
         #region Constructors
 
-        public CommandBuilder(ISqlBuilder<T> sqlBuilder, IMetadataProvider<T> metadataProvider)
+        internal CommandBuilder(IMetadataProvider<T> metadataProvider, ISqlBuilder<T> sqlBuilder)
         {
-            _sqlBuilder = sqlBuilder;
             _metadataProvider = metadataProvider;
-            _dbProviderFactory = MySqlClientFactory.Instance;
+            _sqlBuilder = sqlBuilder;
         }
 
         #endregion
 
-        #region Expression-based methods
-
-        public IDbCommand GetCountCommand(IDbConnection connection, Query<T> query)
+        public SqlCommand GetCountCommand(SqlConnection connection, List<Filter> filters)
         {
-            var command = connection.CreateCommand();
-            command.CommandText = _sqlBuilder.GetCountSql(query, out var parameters);
-            AddParameters(command, parameters);
-            return command;
+            string commandText = _sqlBuilder.GetCountSql(filters, out Dictionary<string, object> parameterDictionary);
+            return GetCommand(connection, commandText, parameterDictionary);
         }
 
-        public IDbCommand GetExistsCommand(IDbConnection connection, Query<T> query)
+        public SqlCommand GetExistsCommand(SqlConnection connection, List<Filter> filters)
         {
-            var command = connection.CreateCommand();
-            command.CommandText = _sqlBuilder.GetExistsSql(query, out var parameters);
-            AddParameters(command, parameters);
-            return command;
+            string commandText = _sqlBuilder.GetExistsSql(filters, out Dictionary<string, object> parameterDictionary);
+            return GetCommand(connection, commandText, parameterDictionary);
         }
 
-        public IDbCommand GetSelectCommand(IDbConnection connection, Query<T> query)
+        public SqlCommand GetSelectCommand(SqlConnection connection, QueryCriteria queryCriteria)
         {
-            var command = connection.CreateCommand();
-            command.CommandText = _sqlBuilder.GetSelectSql(query, out var parameters);
-            AddParameters(command, parameters);
-            return command;
-        }
+            bool doPaging = queryCriteria.PageCriteria != null && queryCriteria.PageCriteria.PageSize != 0 &&
+                            queryCriteria.PageCriteria.Page != 0;
 
-        public IDbCommand GetInsertCommand(IDbConnection connection, T instance)
-        {
-            var command = connection.CreateCommand();
-            var parameters = new Dictionary<string, object>();
-            command.CommandText = _sqlBuilder.GetInsertSql(instance, ref parameters);
-            AddParameters(command, parameters);
-            return command;
-        }
-
-        public IDbCommand GetUpdateCommand(IDbConnection connection, T instance)
-        {
-            var command = connection.CreateCommand();
-            var parameters = new Dictionary<string, object>();
-            var predicate = GetPrimaryKeyPredicate(instance);
-            command.CommandText = _sqlBuilder.GetUpdateSql(instance, null, predicate, ref parameters);
-            AddParameters(command, parameters);
-            return command;
-        }
-
-        public IDbCommand GetUpdateCommand(IDbConnection connection, T instance, Query<T> query)
-        {
-            var command = connection.CreateCommand();
-            command.CommandText = _sqlBuilder.GetUpdateSql(instance, query, out var parameters);
-            AddParameters(command, parameters);
-            return command;
-        }
-
-        public IDbCommand GetDeleteCommand(IDbConnection connection, T instance)
-        {
-            var command = connection.CreateCommand();
-            var query = new Query<T>().Where(GetPrimaryKeyPredicate(instance));
-            command.CommandText = _sqlBuilder.GetDeleteSql(query, out var parameters);
-            AddParameters(command, parameters);
-            return command;
-        }
-
-        public IDbCommand GetDeleteCommand(IDbConnection connection, Query<T> query)
-        {
-            var command = connection.CreateCommand();
-            command.CommandText = _sqlBuilder.GetDeleteSql(query, out var parameters);
-            AddParameters(command, parameters);
-            return command;
-        }
-
-        public IDbCommand GetMergeCommand(IDbConnection connection, List<T> list, Query<T> query)
-        {
-            var command = connection.CreateCommand();
-            command.CommandText = _sqlBuilder.GetMergeSql(list, query, out var parameters);
-            AddParameters(command, parameters);
-            return command;
-        }
-
-        #endregion
-
-        private void AddParameters(IDbCommand command, Dictionary<string, object> parameters)
-        {
-            foreach (var parameter in parameters)
+            if (doPaging)
             {
-                var dbParameter = command.CreateParameter();
-                dbParameter.ParameterName = parameter.Key;
-                dbParameter.Value = parameter.Value ?? DBNull.Value;
-                command.Parameters.Add(dbParameter);
+                if (queryCriteria.SortCriteria.Count == 0)
+                    queryCriteria.SortCriteria.Add(SortCriterion.Ascending(_metadataProvider.PrimaryKeyPropertyName));
             }
+
+            var parameterDictionary = new Dictionary<string, object>();
+
+            string commandText = _sqlBuilder.GetSelectSql(queryCriteria, ref parameterDictionary);
+
+            return GetCommand(connection, commandText, parameterDictionary);
         }
 
-        private Expression<Func<T, bool>> GetPrimaryKeyPredicate(T instance)
+        public SqlCommand GetInsertCommand(SqlConnection connection, T instance)
         {
-            var parameter = Expression.Parameter(typeof(T), "x");
-            
-            // Get the primary key property name and value
-            var propertyName = _metadataProvider.PrimaryKeyPropertyName;
-            var propertyMap = _metadataProvider.GetPropertyMapByPropertyName(propertyName);
-            var value = _metadataProvider.GetPrimaryKeyValue(instance);
-            
-            // Build the expression
-            var propertyAccess = Expression.Property(parameter, propertyMap.PropertyInfo);
-            var constant = Expression.Constant(value, propertyMap.PropertyType);
-            var equals = Expression.Equal(propertyAccess, constant);
+            var parameterDictionary = new Dictionary<string, object>();
 
-            return Expression.Lambda<Func<T, bool>>(equals, parameter);
+            string commandText = _sqlBuilder.GetInsertSql(instance, ref parameterDictionary);
+
+            return GetCommand(connection, $"{commandText}; SELECT SCOPE_IDENTITY()", parameterDictionary);
         }
+
+        public SqlCommand GetUpdateCommand(SqlConnection connection, T instance, T original, List<Filter> filters)
+        {
+            var parameterDictionary = new Dictionary<string, object>();
+            string commandText = _sqlBuilder.GetUpdateSql(instance, original, ref parameterDictionary, filters);
+
+            return GetCommand(connection, commandText, parameterDictionary);
+        }
+
+        public SqlCommand GetDeleteCommand(SqlConnection connection, List<Filter> filters)
+        {
+            var parameterDictionary = new Dictionary<string, object>();
+
+            string commandText = _sqlBuilder.GetDeleteSql(filters, ref parameterDictionary);
+
+            return GetCommand(connection, commandText, parameterDictionary);
+        }
+
+        public SqlCommand GetMergeCommand(SqlConnection connection, string tempTableName, List<Filter> filters)
+        {
+            var parameterDictionary = new Dictionary<string, object>();
+
+            string commandText = _sqlBuilder.GetMergeSql(tempTableName, filters, ref parameterDictionary);
+
+            return GetCommand(connection, commandText, parameterDictionary);
+        }
+
+        private SqlCommand GetCommand(SqlConnection connection, string commandText, Dictionary<string, object> parameterDictionary)
+        {
+            var command = new SqlCommand(commandText, connection);
+
+            if (parameterDictionary.Keys.Count > 2100)
+                throw new ApplicationException("The maximum of 2100 parameters has been exceeded");
+
+            foreach (string param in parameterDictionary.Keys)
+                command.Parameters.AddWithValue(param, parameterDictionary[param] ?? DBNull.Value);
+
+            return command;
+        }
+
     }
 }

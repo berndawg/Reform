@@ -1,4 +1,3 @@
-<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup Label="Globals">
@@ -9,14 +8,14 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <TargetFramework>netstandard2.1</TargetFramework>
+    <TargetFramework>netstandard2.0</TargetFramework>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageId>Reform</PackageId>
     <Version>1.0</Version>
     <Authors>Bernie Seabrook</Authors>
     <Company>Bernie Seabrook</Company>
     <Product>Reform</Product>
-    <Description>Reform is an ORM that's extremely easy to use and extend.  Stop writing SQL!  Use the IReform interface instead.  It includes methods like Count, Exists, Select, Insert, Update, Delete, Merge, and even BulkInsert.  Reform is fully customizable and database provider agnostic.  It puts the C# developer back in control of how data is shaped and manipulated.  Define POCOs, add Reform code attributes, and you're done.  It includes support for validation and transactions and it's the perfect tool for ETL applications.  Forget all about Martin Fowler's silly IRepository pattern.  Use IReform instead.  You'll be glad you did.</Description>
+    <Description>Reform is an ORM that's extremely easy to use and extend.  Stop writing SQL!  Use the IReform interface instead.  It includes methods like Count, Exists, Select, Insert, Update, Delete, Merge, and even BulkInsert.  Reform is fully customizable allowing it to be used even without SQL Server.  It puts the C# developer back in control of how data is shaped and manipulated.  Define POCOs, add Reform code attributes, and you're done.  It includes support for validation and transactions and it’s the perfect tool for ETL applications.  Forget all about Martin Fowler’s silly IRepository pattern.  Use IReform instead.  You’ll be glad you did.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <NeutralLanguage>en</NeutralLanguage>
     <AssemblyVersion>1.1.0.0</AssemblyVersion>
@@ -24,8 +23,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="MySql.Data" Version="8.0.33" />
-    <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.0.0" />
+    <PackageReference Include="System.Data.SqlClient" Version="4.8.1" />
     <PackageReference Include="Unity" Version="5.11.5" />
   </ItemGroup>
 

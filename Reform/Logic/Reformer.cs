@@ -1,25 +1,22 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Data;
-using Unity;
-using Unity.Injection;
-using Unity.Lifetime;
 using Reform.Interfaces;
-using Reform.Objects;
+using Unity;
+using Unity.Lifetime;
 
 namespace Reform.Logic
 {
     public static class Reformer
     {
         private static readonly UnityContainer _unityContainer;
-        private static readonly Dictionary<Type, Type> _typeRegistrations;
 
         #region Constructor
 
         static Reformer()
         {
             _unityContainer = new UnityContainer();
-            _typeRegistrations = new Dictionary<Type, Type>
+
+            var dictionary = new Dictionary<Type, Type>
             {
                 { typeof (IDebugLogger), typeof (DebugLogger) },
                 { typeof (IMetadataProvider<>), typeof (MetadataProvider<>) },
@@ -27,18 +24,13 @@ namespace Reform.Logic
                 { typeof (IDataAccess<>), typeof (DataAccess<>) },
                 { typeof (IConnectionProvider<>), typeof (ConnectionProvider<>) },
                 { typeof (ICommandBuilder<>), typeof (CommandBuilder<>) },
-                { typeof (ISqlBuilder<>), typeof (MySqlBuilder<>) },
+                { typeof (ISqlBuilder<>), typeof (SqlBuilder<>) },
                 { typeof (IValidator<>), typeof (Validator<>) },
-                { typeof (IScopeProvider), typeof (ScopeProvider) },
-                { typeof (IParameterBuilder), typeof (ParameterBuilder) },
-                { typeof (IColumnNameFormatter), typeof (MySqlColumnNameFormatter) },
-                { typeof (IMapper), typeof (Mapper) }
+                { typeof (IScopeProvider), typeof (ScopeProvider) }
             };
 
-            foreach (var registration in _typeRegistrations)
-            {
-                _unityContainer.RegisterType(registration.Key, registration.Value, new SingletonLifetimeManager());
-            }
+            foreach (Type key in dictionary.Keys)
+                RegisterType(key, dictionary[key]);
         }
 
         #endregion
