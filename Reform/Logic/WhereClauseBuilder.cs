@@ -10,13 +10,15 @@ namespace Reform.Logic
     internal class WhereClauseBuilder<T> : ExpressionVisitor where T : class
     {
         private readonly IMetadataProvider<T> _metadataProvider;
+        private readonly IDialect _dialect;
         private StringBuilder _sql;
         private Dictionary<string, object> _parameters;
         private int _parameterIndex;
 
-        public WhereClauseBuilder(IMetadataProvider<T> metadataProvider)
+        public WhereClauseBuilder(IMetadataProvider<T> metadataProvider, IDialect dialect)
         {
             _metadataProvider = metadataProvider;
+            _dialect = dialect;
         }
 
         public (string sql, Dictionary<string, object> parameters) Build(Expression<Func<T, bool>> predicate, int startingIndex = 0)
@@ -143,7 +145,7 @@ namespace Reform.Logic
                 var propertyMap = _metadataProvider.GetPropertyMapByPropertyName(member.Member.Name);
                 if (propertyMap != null)
                 {
-                    _sql.Append($"[{propertyMap.ColumnName}]");
+                    _sql.Append(_dialect.QuoteIdentifier(propertyMap.ColumnName));
                     return;
                 }
 

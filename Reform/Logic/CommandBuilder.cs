@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq.Expressions;
-using Microsoft.Data.Sqlite;
 using Reform.Interfaces;
 using Reform.Objects;
 
@@ -12,11 +11,13 @@ namespace Reform.Logic
     {
         private readonly IMetadataProvider<T> _metadataProvider;
         private readonly ISqlBuilder<T> _sqlBuilder;
+        private readonly IDialect _dialect;
 
-        internal CommandBuilder(IMetadataProvider<T> metadataProvider, ISqlBuilder<T> sqlBuilder)
+        internal CommandBuilder(IMetadataProvider<T> metadataProvider, ISqlBuilder<T> sqlBuilder, IDialect dialect)
         {
             _metadataProvider = metadataProvider;
             _sqlBuilder = sqlBuilder;
+            _dialect = dialect;
         }
 
         public IDbCommand GetCountCommand(IDbConnection connection, Expression<Func<T, bool>> predicate)
@@ -53,7 +54,7 @@ namespace Reform.Logic
             var parameters = new Dictionary<string, object>();
             string commandText = _sqlBuilder.GetInsertSql(instance, ref parameters);
 
-            return GetCommand(connection, $"{commandText}; SELECT last_insert_rowid()", parameters);
+            return GetCommand(connection, $"{commandText}; {_dialect.IdentitySql}", parameters);
         }
 
         public IDbCommand GetUpdateCommand(IDbConnection connection, T instance, T original,
@@ -75,10 +76,15 @@ namespace Reform.Logic
 
         private IDbCommand GetCommand(IDbConnection connection, string commandText, Dictionary<string, object> parameters)
         {
-            var command = new SqliteCommand(commandText, (SqliteConnection)connection);
+            var command = _dialect.CreateCommand(commandText, connection);
 
             foreach (string param in parameters.Keys)
-                command.Parameters.AddWithValue($"@{param}", parameters[param] ?? DBNull.Value);
+            {
+                var p = command.CreateParameter();
+                p.ParameterName = $"{_dialect.ParameterPrefix}{param}";
+                p.Value = parameters[param] ?? DBNull.Value;
+                command.Parameters.Add(p);
+            }
 
             return command;
         }

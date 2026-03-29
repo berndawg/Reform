@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using Reform.Dialects;
 using Reform.Interfaces;
 using Unity;
 using Unity.Lifetime;
@@ -26,7 +27,8 @@ namespace Reform.Logic
                 { typeof (ICommandBuilder<>), typeof (CommandBuilder<>) },
                 { typeof (ISqlBuilder<>), typeof (SqlBuilder<>) },
                 { typeof (IValidator<>), typeof (Validator<>) },
-                { typeof (IScopeProvider), typeof (ScopeProvider) }
+                { typeof (IScopeProvider), typeof (ScopeProvider) },
+                { typeof (IDialect), typeof (SqliteDialect) }
             };
 
             foreach (Type key in dictionary.Keys)
@@ -38,6 +40,21 @@ namespace Reform.Logic
         public static void RegisterType(Type type, Type implementation)
         {
             _unityContainer.RegisterType(type, implementation, new SingletonLifetimeManager());
+        }
+
+        public static void UseSqlite()
+        {
+            RegisterType(typeof(IDialect), typeof(SqliteDialect));
+        }
+
+        public static void UseSqlServer()
+        {
+            RegisterType(typeof(IDialect), typeof(SqlServerDialect));
+        }
+
+        public static void UseMySql()
+        {
+            RegisterType(typeof(IDialect), typeof(MySqlDialect));
         }
 
         public static IReform<T> Reform<T>() where T : class

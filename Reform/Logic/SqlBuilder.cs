@@ -15,12 +15,14 @@ namespace Reform.Logic
     internal sealed class SqlBuilder<T> : ISqlBuilder<T> where T : class
     {
         private readonly IMetadataProvider<T> _metadataProvider;
+        private readonly IDialect _dialect;
         private readonly WhereClauseBuilder<T> _whereClauseBuilder;
 
-        internal SqlBuilder(IMetadataProvider<T> metadataProvider)
+        internal SqlBuilder(IMetadataProvider<T> metadataProvider, IDialect dialect)
         {
             _metadataProvider = metadataProvider;
-            _whereClauseBuilder = new WhereClauseBuilder<T>(metadataProvider);
+            _dialect = dialect;
+            _whereClauseBuilder = new WhereClauseBuilder<T>(metadataProvider, dialect);
         }
 
         public string GetCountSql(Expression<Func<T, bool>> predicate, out Dictionary<string, object> parameters)
@@ -134,7 +136,7 @@ namespace Reform.Logic
             int offset = (pageCriteria.Page - 1) * pageCriteria.PageSize;
             int limit = pageCriteria.PageSize;
 
-            return $"SELECT {columnNames}{fromClause}{where}{orderByClause} LIMIT {limit} OFFSET {offset}";
+            return $"SELECT {columnNames}{fromClause}{where}{orderByClause} {_dialect.GetPagingSql(limit, offset)}";
         }
 
         private string GetFromClause()
@@ -144,7 +146,7 @@ namespace Reform.Logic
 
         private string GetTableName()
         {
-            return $"[{_metadataProvider.TableName}]";
+            return _dialect.QuoteIdentifier(_metadataProvider.TableName);
         }
 
         private string GetOrderByClause(IEnumerable<SortCriterion> sortCriteriaList)
@@ -162,7 +164,7 @@ namespace Reform.Logic
                     if (propertyMap == null)
                         throw new ApplicationException($"The type '{_metadataProvider.Type}' does not contain property metadata for the property '{sortCriteria.PropertyName}'");
 
-                    stringBuilder.Append($"[{propertyMap.ColumnName}]");
+                    stringBuilder.Append(_dialect.QuoteIdentifier(propertyMap.ColumnName));
 
                     if (sortCriteria.Direction == SortDirection.Descending)
                         stringBuilder.Append(" DESC");
@@ -191,7 +193,7 @@ namespace Reform.Logic
             IEnumerable<PropertyMap> propertyMapList = FindDifferences(instance, original);
 
             foreach (PropertyMap propertyMap in propertyMapList)
-                stringBuilder.AppendFormat("[{0}]=@{1},", propertyMap.ColumnName,
+                stringBuilder.AppendFormat("{0}=@{1},", _dialect.QuoteIdentifier(propertyMap.ColumnName),
                     AddParameter(parameters, propertyMap, instance));
 
             return stringBuilder.ToString().RemoveFromEnd(",");
@@ -227,7 +229,7 @@ namespace Reform.Logic
 
         private string GetColumnNames(IEnumerable<PropertyMap> propertyMaps)
         {
-            return string.Join(",", propertyMaps.Select(x => $"[{x.ColumnName}]"));
+            return string.Join(",", propertyMaps.Select(x => _dialect.QuoteIdentifier(x.ColumnName)));
         }
     }
 }

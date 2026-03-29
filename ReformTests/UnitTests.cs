@@ -22,6 +22,7 @@ namespace ReformTests
 
             CreateTables(_sharedConnection);
 
+            Reformer.UseSqlite();
             Reformer.RegisterType(typeof(IConnectionStringProvider), typeof(TestConnectionStringProvider));
             Reformer.RegisterType(typeof(IDebugLogger), typeof(TestDebugLogger));
         }

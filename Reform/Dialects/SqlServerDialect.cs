@@ -1,0 +1,33 @@
+using System.Data;
+using Microsoft.Data.SqlClient;
+using Reform.Interfaces;
+
+namespace Reform.Dialects
+{
+    public class SqlServerDialect : IDialect
+    {
+        public IDbConnection CreateConnection(string connectionString)
+        {
+            return new SqlConnection(connectionString);
+        }
+
+        public IDbCommand CreateCommand(string commandText, IDbConnection connection)
+        {
+            return new SqlCommand(commandText, (SqlConnection)connection);
+        }
+
+        public string IdentitySql => "SELECT SCOPE_IDENTITY()";
+
+        public string GetPagingSql(int limit, int offset)
+        {
+            return $"OFFSET {offset} ROWS FETCH NEXT {limit} ROWS ONLY";
+        }
+
+        public string QuoteIdentifier(string name)
+        {
+            return $"[{name}]";
+        }
+
+        public string ParameterPrefix => "@";
+    }
+}
