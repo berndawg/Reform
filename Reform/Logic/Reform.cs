@@ -23,6 +23,11 @@ namespace Reform.Logic
             _validator = validator;
         }
 
+        protected Reform(IValidator<T> validator)
+        {
+            _validator = validator;
+        }
+
         #region Connection
 
         public IDbConnection GetConnection()
@@ -34,7 +39,7 @@ namespace Reform.Logic
 
         #region Count
 
-        public int Count()
+        public virtual int Count()
         {
             using (IDbConnection connection = GetConnection())
             {
@@ -42,7 +47,7 @@ namespace Reform.Logic
             }
         }
 
-        public int Count(Expression<Func<T, bool>> predicate)
+        public virtual int Count(Expression<Func<T, bool>> predicate)
         {
             using (IDbConnection connection = GetConnection())
             {
@@ -50,7 +55,7 @@ namespace Reform.Logic
             }
         }
 
-        public async Task<int> CountAsync()
+        public virtual async Task<int> CountAsync()
         {
             await using (DbConnection connection = await _connectionProvider.GetConnectionAsync())
             {
@@ -58,7 +63,7 @@ namespace Reform.Logic
             }
         }
 
-        public async Task<int> CountAsync(Expression<Func<T, bool>> predicate)
+        public virtual async Task<int> CountAsync(Expression<Func<T, bool>> predicate)
         {
             await using (DbConnection connection = await _connectionProvider.GetConnectionAsync())
             {
@@ -70,7 +75,7 @@ namespace Reform.Logic
 
         #region Exists
 
-        public bool Exists(Expression<Func<T, bool>> predicate)
+        public virtual bool Exists(Expression<Func<T, bool>> predicate)
         {
             using (IDbConnection connection = GetConnection())
             {
@@ -78,7 +83,7 @@ namespace Reform.Logic
             }
         }
 
-        public async Task<bool> ExistsAsync(Expression<Func<T, bool>> predicate)
+        public virtual async Task<bool> ExistsAsync(Expression<Func<T, bool>> predicate)
         {
             await using (DbConnection connection = await _connectionProvider.GetConnectionAsync())
             {
@@ -90,7 +95,7 @@ namespace Reform.Logic
 
         #region Insert
 
-        public void Insert(T item)
+        public virtual void Insert(T item)
         {
             using (IDbConnection connection = GetConnection())
             {
@@ -110,7 +115,7 @@ namespace Reform.Logic
             }
         }
 
-        public void Insert(List<T> items)
+        public virtual void Insert(List<T> items)
         {
             using (IDbConnection connection = GetConnection())
             {
@@ -199,7 +204,7 @@ namespace Reform.Logic
 
         #region Update
 
-        public void Update(T item)
+        public virtual void Update(T item)
         {
             using (IDbConnection connection = GetConnection())
             {
@@ -219,7 +224,7 @@ namespace Reform.Logic
             }
         }
 
-        public void Update(List<T> list)
+        public virtual void Update(List<T> list)
         {
             using (IDbConnection connection = GetConnection())
             {
@@ -308,7 +313,7 @@ namespace Reform.Logic
 
         #region Delete
 
-        public void Delete(T item)
+        public virtual void Delete(T item)
         {
             using (IDbConnection connection = GetConnection())
             {
@@ -330,7 +335,7 @@ namespace Reform.Logic
             }
         }
 
-        public void Delete(List<T> list)
+        public virtual void Delete(List<T> list)
         {
             using (IDbConnection connection = GetConnection())
             {
@@ -415,7 +420,7 @@ namespace Reform.Logic
 
         #region SelectSingle
 
-        public T SelectSingle(Expression<Func<T, bool>> predicate)
+        public virtual T SelectSingle(Expression<Func<T, bool>> predicate)
         {
             IEnumerable<T> list = Select(predicate).ToList();
 
@@ -425,7 +430,7 @@ namespace Reform.Logic
             throw new ApplicationException($"Expected to find 1 {typeof(T).Name} but found {list.Count()}");
         }
 
-        public T SelectSingleOrDefault(Expression<Func<T, bool>> predicate)
+        public virtual T SelectSingleOrDefault(Expression<Func<T, bool>> predicate)
         {
             IEnumerable<T> list = Select(predicate).ToList();
 
@@ -459,17 +464,17 @@ namespace Reform.Logic
 
         #region Select
 
-        public IEnumerable<T> Select()
+        public virtual IEnumerable<T> Select()
         {
             return Select(new QueryCriteria<T>());
         }
 
-        public IEnumerable<T> Select(Expression<Func<T, bool>> predicate)
+        public virtual IEnumerable<T> Select(Expression<Func<T, bool>> predicate)
         {
             return Select(new QueryCriteria<T> { Predicate = predicate });
         }
 
-        public IEnumerable<T> Select(QueryCriteria<T> queryCriteria)
+        public virtual IEnumerable<T> Select(QueryCriteria<T> queryCriteria)
         {
             using (IDbConnection connection = GetConnection())
             {

@@ -81,16 +81,7 @@ namespace Reform
             foreach (var (serviceType, instance) in _instances)
                 services.AddSingleton(serviceType, instance);
 
-            var provider = services.BuildServiceProvider();
-
-            // Validate that a connection string provider is available
-            var connProvider = provider.GetService<IConnectionStringProvider>();
-            if (connProvider == null)
-                throw new InvalidOperationException(
-                    "No connection string configured. Provide a connection string (e.g., UseSqlite(\"...\")) " +
-                    "or register a custom IConnectionStringProvider.");
-
-            return new ReformFactory(provider);
+            return new ReformFactory(services.BuildServiceProvider());
         }
     }
 }

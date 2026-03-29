@@ -12,7 +12,7 @@ namespace Reform.Logic
         private readonly IMetadataProvider<T> _metadataProvider;
         private readonly IDialect _dialect;
 
-        public ConnectionProvider(IConnectionStringProvider connectionStringProvider, IMetadataProvider<T> metadataProvider, IDialect dialect)
+        public ConnectionProvider(IMetadataProvider<T> metadataProvider, IDialect dialect, IConnectionStringProvider connectionStringProvider = null)
         {
             _connectionStringProvider = connectionStringProvider;
             _metadataProvider = metadataProvider;
@@ -21,6 +21,11 @@ namespace Reform.Logic
 
         public IDbConnection GetConnection()
         {
+            if (_connectionStringProvider == null)
+                throw new InvalidOperationException(
+                    "No connection string configured. Provide a connection string (e.g., UseSqlite(\"...\")) " +
+                    "or register a custom IConnectionStringProvider.");
+
             string connectionString = _connectionStringProvider.GetConnectionString(_metadataProvider.DatabaseName);
 
             try
@@ -37,6 +42,11 @@ namespace Reform.Logic
 
         public async Task<DbConnection> GetConnectionAsync()
         {
+            if (_connectionStringProvider == null)
+                throw new InvalidOperationException(
+                    "No connection string configured. Provide a connection string (e.g., UseSqlite(\"...\")) " +
+                    "or register a custom IConnectionStringProvider.");
+
             string connectionString = _connectionStringProvider.GetConnectionString(_metadataProvider.DatabaseName);
 
             try
