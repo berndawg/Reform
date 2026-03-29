@@ -1,4 +1,4 @@
-﻿using Reform.Interfaces;
+using Reform.Interfaces;
 using System;
 using System.Diagnostics;
 
@@ -6,22 +6,19 @@ namespace Reform.Objects
 {
     public class OperationTimer : IDisposable
     {
-        private readonly DateTime _startDateTime;
+        private readonly Stopwatch _stopwatch;
         private readonly IDebugLogger _debugLogger;
 
         public OperationTimer(IDebugLogger debugLogger)
         {
             _debugLogger = debugLogger;
-            _startDateTime = DateTime.Now;
+            _stopwatch = Stopwatch.StartNew();
         }
 
         public void Dispose()
         {
-            DateTime endDateTime = DateTime.Now;
-
-            TimeSpan timespan = endDateTime - _startDateTime;
-
-            _debugLogger.WriteLine($"ELLAPASED TIME: {timespan}{Environment.NewLine}");
+            _stopwatch.Stop();
+            _debugLogger.WriteLine($"ELAPSED TIME: {_stopwatch.Elapsed}{Environment.NewLine}");
         }
     }
 }

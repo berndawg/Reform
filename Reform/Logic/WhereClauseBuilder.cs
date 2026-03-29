@@ -98,21 +98,21 @@ namespace Reform.Logic
                 {
                     case "Contains":
                         VisitMemberForColumn(node.Object);
-                        var containsValue = GetValue(node.Arguments[0]);
+                        var containsValue = EscapeLikeValue(GetValue(node.Arguments[0])?.ToString());
                         var containsParam = AddParameter($"%{containsValue}%");
                         _sql.Append($" LIKE @{containsParam}");
                         return node;
 
                     case "StartsWith":
                         VisitMemberForColumn(node.Object);
-                        var startsValue = GetValue(node.Arguments[0]);
+                        var startsValue = EscapeLikeValue(GetValue(node.Arguments[0])?.ToString());
                         var startsParam = AddParameter($"{startsValue}%");
                         _sql.Append($" LIKE @{startsParam}");
                         return node;
 
                     case "EndsWith":
                         VisitMemberForColumn(node.Object);
-                        var endsValue = GetValue(node.Arguments[0]);
+                        var endsValue = EscapeLikeValue(GetValue(node.Arguments[0])?.ToString());
                         var endsParam = AddParameter($"%{endsValue}");
                         _sql.Append($" LIKE @{endsParam}");
                         return node;
@@ -199,6 +199,12 @@ namespace Reform.Logic
             string name = $"P{_parameterIndex}";
             _parameters.Add(name, value);
             return name;
+        }
+
+        private string EscapeLikeValue(string value)
+        {
+            if (value == null) return null;
+            return value.Replace("[", "[[]").Replace("%", "[%]").Replace("_", "[_]");
         }
     }
 }

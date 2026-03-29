@@ -212,7 +212,7 @@ namespace Reform.Logic
         {
             if (v1 == null && v2 == null) return false;
             if (v1 == null || v2 == null) return true;
-            return v1.ToString() != v2.ToString();
+            return !v1.Equals(v2);
         }
 
         private string AddParameter(Dictionary<string, object> parameters, PropertyMap propertyMap, object instance)
