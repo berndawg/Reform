@@ -1,18 +1,18 @@
-﻿// Copyright (c) 2020 Bernie Seabrook. All Rights Reserved.
+using System;
 using System.Collections.Generic;
+using System.Linq.Expressions;
 using Reform.Objects;
 
 namespace Reform.Interfaces
 {
-    // ReSharper disable once UnusedTypeParameter
-    public interface ISqlBuilder<T>
+    public interface ISqlBuilder<T> where T : class
     {
-        string GetCountSql(List<Filter> filters, out Dictionary<string, object> parameterDictionary);
-        string GetExistsSql(List<Filter> filters, out Dictionary<string, object> parameterDictionary);
-        string GetSelectSql(QueryCriteria queryCriteria, ref Dictionary<string, object> parameterDictionary);
-        string GetInsertSql(T instance, ref Dictionary<string, object> parameterDictionary);
-        string GetUpdateSql(T instance, object original, ref Dictionary<string, object> parameterDictionary, List<Filter> filters);
-        string GetDeleteSql(List<Filter> filters, ref Dictionary<string, object> parameterDictionary);
-        string GetMergeSql(string tempTableName, List<Filter> filters, ref Dictionary<string, object> parameterDictionary);
+        string GetCountSql(Expression<Func<T, bool>> predicate, out Dictionary<string, object> parameters);
+        string GetExistsSql(Expression<Func<T, bool>> predicate, out Dictionary<string, object> parameters);
+        string GetSelectSql(QueryCriteria<T> queryCriteria, ref Dictionary<string, object> parameters);
+        string GetInsertSql(T instance, ref Dictionary<string, object> parameters);
+        string GetUpdateSql(T instance, object original, ref Dictionary<string, object> parameters,
+                            Expression<Func<T, bool>> predicate);
+        string GetDeleteSql(Expression<Func<T, bool>> predicate, ref Dictionary<string, object> parameters);
     }
 }

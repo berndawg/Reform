@@ -1,4 +1,3 @@
-// Copyright (c) 2020 Bernie Seabrook. All Rights Reserved.
 using System;
 using System.Collections.Generic;
 using Reform.Objects;
@@ -11,12 +10,8 @@ namespace Reform.Interfaces
         IEnumerable<PropertyMap> AllProperties { get; }
         IEnumerable<PropertyMap> RequiredProperties { get; }
         IEnumerable<PropertyMap> UpdateableProperties { get; }
-        string SymmetricKeyName { get; }
-        string SymmetricKeyCertificate { get; }
         string DatabaseName { get; }
         string TableName { get; }
-        string SchemaName { get; }
-        bool HasEncryptedFields { get; }
         string PrimaryKeyPropertyName { get; }
         string PrimaryKeyColumnName { get; }
         PropertyMap GetPropertyMapByPropertyName(string propertyName);

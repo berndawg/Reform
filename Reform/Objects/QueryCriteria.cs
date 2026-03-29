@@ -1,30 +1,18 @@
-﻿// Copyright (c) 2020 Bernie Seabrook. All Rights Reserved.
-
-using System.Collections.Generic;
-using System.Runtime.Serialization;
+using System;
+using System.Linq.Expressions;
 
 namespace Reform.Objects
 {
-    public class QueryCriteria
+    public class QueryCriteria<T> where T : class
     {
-        #region Constructor
-
         public QueryCriteria()
         {
-            Filters = new List<Filter>();
             SortCriteria = new SortCriteria();
             PageCriteria = new PageCriteria();
         }
 
-        #endregion
-
-        [DataMember]
-        public List<Filter> Filters { get; set; }
-
-        [DataMember]
+        public Expression<Func<T, bool>> Predicate { get; set; }
         public SortCriteria SortCriteria { get; set; }
-
-        [DataMember]
         public PageCriteria PageCriteria { get; set; }
     }
 }

@@ -1,7 +1,8 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Data.SqlClient;
+using System.Linq.Expressions;
+using Microsoft.Data.Sqlite;
 using Reform.Interfaces;
 using Reform.Objects;
 
@@ -9,14 +10,8 @@ namespace Reform.Logic
 {
     internal sealed class CommandBuilder<T> : ICommandBuilder<T> where T : class
     {
-        #region Fields
-
         private readonly IMetadataProvider<T> _metadataProvider;
         private readonly ISqlBuilder<T> _sqlBuilder;
-
-        #endregion
-
-        #region Constructors
 
         internal CommandBuilder(IMetadataProvider<T> metadataProvider, ISqlBuilder<T> sqlBuilder)
         {
@@ -24,21 +19,19 @@ namespace Reform.Logic
             _sqlBuilder = sqlBuilder;
         }
 
-        #endregion
-
-        public SqlCommand GetCountCommand(SqlConnection connection, List<Filter> filters)
+        public IDbCommand GetCountCommand(IDbConnection connection, Expression<Func<T, bool>> predicate)
         {
-            string commandText = _sqlBuilder.GetCountSql(filters, out Dictionary<string, object> parameterDictionary);
-            return GetCommand(connection, commandText, parameterDictionary);
+            string commandText = _sqlBuilder.GetCountSql(predicate, out Dictionary<string, object> parameters);
+            return GetCommand(connection, commandText, parameters);
         }
 
-        public SqlCommand GetExistsCommand(SqlConnection connection, List<Filter> filters)
+        public IDbCommand GetExistsCommand(IDbConnection connection, Expression<Func<T, bool>> predicate)
         {
-            string commandText = _sqlBuilder.GetExistsSql(filters, out Dictionary<string, object> parameterDictionary);
-            return GetCommand(connection, commandText, parameterDictionary);
+            string commandText = _sqlBuilder.GetExistsSql(predicate, out Dictionary<string, object> parameters);
+            return GetCommand(connection, commandText, parameters);
         }
 
-        public SqlCommand GetSelectCommand(SqlConnection connection, QueryCriteria queryCriteria)
+        public IDbCommand GetSelectCommand(IDbConnection connection, QueryCriteria<T> queryCriteria)
         {
             bool doPaging = queryCriteria.PageCriteria != null && queryCriteria.PageCriteria.PageSize != 0 &&
                             queryCriteria.PageCriteria.Page != 0;
@@ -49,60 +42,45 @@ namespace Reform.Logic
                     queryCriteria.SortCriteria.Add(SortCriterion.Ascending(_metadataProvider.PrimaryKeyPropertyName));
             }
 
-            var parameterDictionary = new Dictionary<string, object>();
+            var parameters = new Dictionary<string, object>();
+            string commandText = _sqlBuilder.GetSelectSql(queryCriteria, ref parameters);
 
-            string commandText = _sqlBuilder.GetSelectSql(queryCriteria, ref parameterDictionary);
-
-            return GetCommand(connection, commandText, parameterDictionary);
+            return GetCommand(connection, commandText, parameters);
         }
 
-        public SqlCommand GetInsertCommand(SqlConnection connection, T instance)
+        public IDbCommand GetInsertCommand(IDbConnection connection, T instance)
         {
-            var parameterDictionary = new Dictionary<string, object>();
+            var parameters = new Dictionary<string, object>();
+            string commandText = _sqlBuilder.GetInsertSql(instance, ref parameters);
 
-            string commandText = _sqlBuilder.GetInsertSql(instance, ref parameterDictionary);
-
-            return GetCommand(connection, $"{commandText}; SELECT SCOPE_IDENTITY()", parameterDictionary);
+            return GetCommand(connection, $"{commandText}; SELECT last_insert_rowid()", parameters);
         }
 
-        public SqlCommand GetUpdateCommand(SqlConnection connection, T instance, T original, List<Filter> filters)
+        public IDbCommand GetUpdateCommand(IDbConnection connection, T instance, T original,
+                                           Expression<Func<T, bool>> predicate)
         {
-            var parameterDictionary = new Dictionary<string, object>();
-            string commandText = _sqlBuilder.GetUpdateSql(instance, original, ref parameterDictionary, filters);
+            var parameters = new Dictionary<string, object>();
+            string commandText = _sqlBuilder.GetUpdateSql(instance, original, ref parameters, predicate);
 
-            return GetCommand(connection, commandText, parameterDictionary);
+            return GetCommand(connection, commandText, parameters);
         }
 
-        public SqlCommand GetDeleteCommand(SqlConnection connection, List<Filter> filters)
+        public IDbCommand GetDeleteCommand(IDbConnection connection, Expression<Func<T, bool>> predicate)
         {
-            var parameterDictionary = new Dictionary<string, object>();
+            var parameters = new Dictionary<string, object>();
+            string commandText = _sqlBuilder.GetDeleteSql(predicate, ref parameters);
 
-            string commandText = _sqlBuilder.GetDeleteSql(filters, ref parameterDictionary);
-
-            return GetCommand(connection, commandText, parameterDictionary);
+            return GetCommand(connection, commandText, parameters);
         }
 
-        public SqlCommand GetMergeCommand(SqlConnection connection, string tempTableName, List<Filter> filters)
+        private IDbCommand GetCommand(IDbConnection connection, string commandText, Dictionary<string, object> parameters)
         {
-            var parameterDictionary = new Dictionary<string, object>();
+            var command = new SqliteCommand(commandText, (SqliteConnection)connection);
 
-            string commandText = _sqlBuilder.GetMergeSql(tempTableName, filters, ref parameterDictionary);
-
-            return GetCommand(connection, commandText, parameterDictionary);
-        }
-
-        private SqlCommand GetCommand(SqlConnection connection, string commandText, Dictionary<string, object> parameterDictionary)
-        {
-            var command = new SqlCommand(commandText, connection);
-
-            if (parameterDictionary.Keys.Count > 2100)
-                throw new ApplicationException("The maximum of 2100 parameters has been exceeded");
-
-            foreach (string param in parameterDictionary.Keys)
-                command.Parameters.AddWithValue(param, parameterDictionary[param] ?? DBNull.Value);
+            foreach (string param in parameters.Keys)
+                command.Parameters.AddWithValue($"@{param}", parameters[param] ?? DBNull.Value);
 
             return command;
         }
-
     }
 }

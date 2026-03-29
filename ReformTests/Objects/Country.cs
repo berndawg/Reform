@@ -1,14 +1,14 @@
-﻿using Reform.Attributes;
+using Reform.Attributes;
 
 namespace ReformTests.Objects
 {
-    [EntityMetadata(DatabaseName = "ReformDB", TableName = "Country")]
+    [EntityMetadata(DatabaseName = "TestDb", TableName = "Country")]
     public class Country
     {
-        [PropertyMetadata(ColumnName = "CountryId", DisplayName ="Country ID", IsPrimaryKey = true, IsIdentity = true)]
+        [PropertyMetadata(ColumnName = "CountryId", DisplayName = "Country ID", IsPrimaryKey = true, IsIdentity = true)]
         public int CountryId { get; set; }
 
-        [PropertyMetadata(ColumnName = "CountryName", DisplayName ="Country Name")]
+        [PropertyMetadata(ColumnName = "CountryName", DisplayName = "Country Name")]
         public string CountryName { get; set; }
     }
 }

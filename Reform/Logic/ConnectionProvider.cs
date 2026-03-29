@@ -1,6 +1,6 @@
-// Copyright (c) 2020 Bernie Seabrook. All Rights Reserved.
 using System;
-using System.Data.SqlClient;
+using System.Data;
+using Microsoft.Data.Sqlite;
 using Reform.Interfaces;
 
 namespace Reform.Logic
@@ -10,36 +10,26 @@ namespace Reform.Logic
         private readonly IConnectionStringProvider _connectionStringProvider;
         private readonly IMetadataProvider<T> _metadataProvider;
 
-        #region Constructors
-
         internal ConnectionProvider(IConnectionStringProvider connectionStringProvider, IMetadataProvider<T> metadataProvider)
         {
             _connectionStringProvider = connectionStringProvider;
             _metadataProvider = metadataProvider;
         }
 
-        #endregion
-
-        #region Interface Implementation
-
-        public SqlConnection GetConnection()
+        public IDbConnection GetConnection()
         {
             string connectionString = _connectionStringProvider.GetConnectionString(_metadataProvider.DatabaseName);
 
             try
             {
-                var connection = new SqlConnection(connectionString);
-
+                var connection = new SqliteConnection(connectionString);
                 connection.Open();
-
                 return connection;
             }
             catch (Exception ex)
             {
-                throw new ApplicationException($"Failed to open SqlConnection using connection string: {connectionString}", ex);
+                throw new ApplicationException($"Failed to open SqliteConnection using connection string: {connectionString}", ex);
             }
         }
-
-        #endregion
     }
 }

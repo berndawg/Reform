@@ -1,7 +1,6 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
-using Reform.Enum;
 using Reform.Interfaces;
 using Reform.Objects;
 
@@ -43,6 +42,5 @@ namespace Reform.Logic
                         yield return errorMessage;
             }
         }
-
     }
 }

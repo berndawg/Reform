@@ -1,11 +1,9 @@
-﻿// Copyright (c) 2020 Bernie Seabrook. All Rights Reserved.
 using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Data.SqlClient;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Reflection;
-using Reform.Extensions;
 using Reform.Interfaces;
 using Reform.Objects;
 
@@ -13,15 +11,9 @@ namespace Reform.Logic
 {
     internal sealed class DataAccess<T> : IDataAccess<T> where T : class
     {
-        #region Fields
-
         private readonly IMetadataProvider<T> _metadataProvider;
         private readonly ICommandBuilder<T> _commandBuilder;
         private readonly IDebugLogger _debugLogger;
-
-        #endregion
-
-        #region Constructors
 
         internal DataAccess(IMetadataProvider<T> metadataProvider, ICommandBuilder<T> commandBuilder, IDebugLogger debugLogger)
         {
@@ -30,161 +22,89 @@ namespace Reform.Logic
             _debugLogger = debugLogger;
         }
 
-        #endregion
-
-        #region Implementation of IDataAccess
-
-        #region Exists
-
-        public int Count(SqlConnection connection, List<Filter> filters)
+        public int Count(IDbConnection connection, Expression<Func<T, bool>> predicate)
         {
-            using (SqlCommand command = _commandBuilder.GetCountCommand(connection, filters))
+            using (IDbCommand command = _commandBuilder.GetCountCommand(connection, predicate))
             {
                 return Convert.ToInt32(ExecuteScalar(command));
             }
         }
 
-        public bool Exists(SqlConnection connection, List<Filter> filters)
+        public bool Exists(IDbConnection connection, Expression<Func<T, bool>> predicate)
         {
-            using (SqlCommand command = _commandBuilder.GetExistsCommand(connection, filters))
+            using (IDbCommand command = _commandBuilder.GetExistsCommand(connection, predicate))
             {
-                return Convert.ToBoolean(ExecuteScalar(command));
+                return Convert.ToInt64(ExecuteScalar(command)) == 1;
             }
         }
 
-        #endregion
-
-        #region Select
-
-        public IEnumerable<T> Select(SqlConnection connection, List<Filter> filters)
+        public IEnumerable<T> Select(IDbConnection connection, QueryCriteria<T> queryCriteria)
         {
-            return Select(connection, new QueryCriteria
-            {
-                Filters = filters,
-                PageCriteria = PageCriteria.All()
-            });
-        }
-
-        public IEnumerable<T> Select(SqlConnection connection, QueryCriteria queryCriteria)
-        {
-            using (SqlCommand command = _commandBuilder.GetSelectCommand(connection, queryCriteria))
+            using (IDbCommand command = _commandBuilder.GetSelectCommand(connection, queryCriteria))
             {
                 return ExecuteReader(command);
             }
         }
 
-        #endregion
-
-        #region Insert
-
-        public void Insert(SqlConnection connection, T instance)
+        public void Insert(IDbConnection connection, T instance)
         {
-            using (SqlCommand command = _commandBuilder.GetInsertCommand(connection, instance))
+            using (IDbCommand command = _commandBuilder.GetInsertCommand(connection, instance))
             {
                 object id = ExecuteScalar(command);
 
-                if (id is decimal decimalValue)
-                    _metadataProvider.SetPrimaryKeyValue(instance, (int)decimalValue);
+                if (id != null && id != DBNull.Value)
+                    _metadataProvider.SetPrimaryKeyValue(instance, Convert.ToInt32(id));
             }
         }
 
-        #endregion
-
-        #region Update
-
-        public void Update(SqlConnection connection, T instance)
+        public void Update(IDbConnection connection, T instance)
         {
-            var filters = new List<Filter>
-            {
-                Filter.EqualTo(_metadataProvider.PrimaryKeyPropertyName, _metadataProvider.GetPrimaryKeyValue(instance))
-            };
+            // Build a predicate for PK = value
+            var pkValue = _metadataProvider.GetPrimaryKeyValue(instance);
+            var param = Expression.Parameter(typeof(T), "x");
+            var property = Expression.Property(param, _metadataProvider.PrimaryKeyPropertyName);
+            var constant = Expression.Constant(pkValue, property.Type);
+            var equality = Expression.Equal(property, constant);
+            var predicate = Expression.Lambda<Func<T, bool>>(equality, param);
 
-            Update(connection, instance, filters);
+            Update(connection, instance, predicate);
         }
 
-        public void Update(SqlConnection connection, T instance, List<Filter> filters)
+        public void Update(IDbConnection connection, T instance, Expression<Func<T, bool>> predicate)
         {
-            var list = new List<T>(Select(connection, filters));
+            var queryCriteria = new QueryCriteria<T> { Predicate = predicate };
+            var list = new List<T>(Select(connection, queryCriteria));
 
             if (list.Count != 1)
-                throw new ApplicationException($"Expected to find 1 {typeof(T).Name} but found {list.Count} using the criteria: {filters.ToText()}");
+                throw new ApplicationException($"Expected to find 1 {typeof(T).Name} but found {list.Count}");
 
-            using (SqlCommand command = _commandBuilder.GetUpdateCommand(connection, instance, list[0], filters))
+            using (IDbCommand command = _commandBuilder.GetUpdateCommand(connection, instance, list[0], predicate))
             {
                 ExecuteNonQuery(command);
             }
         }
 
-        #endregion
-
-        #region Delete
-
-        public void Delete(SqlConnection connection, T instance)
+        public void Delete(IDbConnection connection, T instance)
         {
-            string propertyName = _metadataProvider.PrimaryKeyPropertyName;
-            object propertyValue = _metadataProvider.GetPrimaryKeyValue(instance);
+            var pkValue = _metadataProvider.GetPrimaryKeyValue(instance);
+            var param = Expression.Parameter(typeof(T), "x");
+            var property = Expression.Property(param, _metadataProvider.PrimaryKeyPropertyName);
+            var constant = Expression.Constant(pkValue, property.Type);
+            var equality = Expression.Equal(property, constant);
+            var predicate = Expression.Lambda<Func<T, bool>>(equality, param);
 
-            Delete(connection, new List<Filter>
-            {
-                Filter.EqualTo(propertyName, propertyValue)
-            });
+            Delete(connection, predicate);
         }
 
-        public void Delete(SqlConnection connection, List<Filter> filters)
+        public void Delete(IDbConnection connection, Expression<Func<T, bool>> predicate)
         {
-            using (SqlCommand command = _commandBuilder.GetDeleteCommand(connection, filters))
+            using (IDbCommand command = _commandBuilder.GetDeleteCommand(connection, predicate))
             {
                 command.ExecuteNonQuery();
             }
         }
 
-        #endregion
-
-        public void Truncate(SqlConnection connection)
-        {
-            using (var command = new SqlCommand($"TRUNCATE TABLE [{_metadataProvider.SchemaName}].[{_metadataProvider.TableName}];", connection))
-            {
-                ExecuteNonQuery(command);
-            }
-        }
-
-        public void BulkInsert(SqlConnection connection, List<T> list)
-        {
-            using (var bulk = new SqlBulkCopy(connection))
-            {
-                bulk.DestinationTableName = $"[{_metadataProvider.SchemaName}].[{_metadataProvider.TableName}]";
-                bulk.WriteToServer(GetDataTable(list));
-            }
-        }
-
-        public void Merge(SqlConnection connection, List<T> list, List<Filter> filters)
-        {
-            string tempTableName = $"#{_metadataProvider.TableName}Temp";
-
-            string commandText = $"SELECT * INTO {tempTableName} FROM [{_metadataProvider.SchemaName}].[{_metadataProvider.TableName}] WHERE 1=2";
-
-            using (var command = new SqlCommand(commandText, connection))
-            {
-                ExecuteNonQuery(command);
-            }
-
-            using (SqlCommand command = _commandBuilder.GetMergeCommand(connection, tempTableName, filters))
-            {
-                using (var bulk = new SqlBulkCopy(connection))
-                {
-                    bulk.DestinationTableName = tempTableName;
-                    bulk.WriteToServer(GetDataTable(list));
-
-                    ExecuteNonQuery(command);
-                }
-            }
-        }
-
-        #endregion
-
-        #region Helpers
-
-        private void ExecuteNonQuery(SqlCommand command)
+        private void ExecuteNonQuery(IDbCommand command)
         {
             WriteCommand(command);
 
@@ -194,7 +114,7 @@ namespace Reform.Logic
             }
         }
 
-        private object ExecuteScalar(SqlCommand command)
+        private object ExecuteScalar(IDbCommand command)
         {
             WriteCommand(command);
 
@@ -204,7 +124,7 @@ namespace Reform.Logic
             }
         }
 
-        private IEnumerable<T> ExecuteReader(SqlCommand command)
+        private IEnumerable<T> ExecuteReader(IDbCommand command)
         {
             WriteCommand(command);
 
@@ -238,7 +158,6 @@ namespace Reform.Logic
             for (var i = 0; i < reader.FieldCount; i++)
             {
                 string columnName = reader.GetName(i);
-
                 array[i] = propertyInfos.FirstOrDefault(x => string.Compare(x.Name, columnName, StringComparison.OrdinalIgnoreCase) == 0);
             }
 
@@ -259,7 +178,15 @@ namespace Reform.Logic
 
                 try
                 {
-                    propertyInfos[i].SetValue(instance, reader.GetValue(i));
+                    object value = reader.GetValue(i);
+                    Type targetType = propertyInfos[i].PropertyType;
+                    Type underlyingType = Nullable.GetUnderlyingType(targetType) ?? targetType;
+
+                    // SQLite returns Int64 for integers, need to convert
+                    if (value.GetType() != underlyingType)
+                        value = Convert.ChangeType(value, underlyingType);
+
+                    propertyInfos[i].SetValue(instance, value);
                 }
                 catch (Exception e)
                 {
@@ -270,35 +197,11 @@ namespace Reform.Logic
             return instance;
         }
 
-        public DataTable GetDataTable(IEnumerable<T> list)
-        {
-            var dataTable = new DataTable(_metadataProvider.TableName);
-
-            foreach (PropertyMap propertyMap in _metadataProvider.AllProperties)
-            {
-                dataTable.Columns.Add(new DataColumn(propertyMap.ColumnName, Nullable.GetUnderlyingType(propertyMap.PropertyType) ?? propertyMap.PropertyType));
-            }
-
-            foreach (T item in list)
-            {
-                dataTable.Rows.Add(GetDataRow(dataTable, item));
-            }
-
-            return dataTable;
-        }
-
-        private DataRow GetDataRow(DataTable dataTable, T item)
-        {
-            DataRow dataRow = dataTable.NewRow();
-            dataRow.ItemArray = _metadataProvider.AllProperties.Select(propertyMap => propertyMap.GetPropertyValue(item)).ToArray();
-            return dataRow;
-        }
-
-        private void WriteCommand(SqlCommand command)
+        private void WriteCommand(IDbCommand command)
         {
             WriteLine(command.CommandText);
 
-            foreach (SqlParameter param in command.Parameters)
+            foreach (IDbDataParameter param in command.Parameters)
             {
                 WriteLine($"@{param.ParameterName} = {param.Value}");
             }
@@ -308,6 +211,5 @@ namespace Reform.Logic
         {
             _debugLogger.WriteLine(stringValue);
         }
-        #endregion
     }
- }
+}
