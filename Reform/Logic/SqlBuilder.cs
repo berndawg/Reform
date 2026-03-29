@@ -12,13 +12,13 @@ using Reform.Objects;
 [assembly: InternalsVisibleTo("ReformTests")]
 namespace Reform.Logic
 {
-    internal sealed class SqlBuilder<T> : ISqlBuilder<T> where T : class
+    public sealed class SqlBuilder<T> : ISqlBuilder<T> where T : class
     {
         private readonly IMetadataProvider<T> _metadataProvider;
         private readonly IDialect _dialect;
         private readonly WhereClauseBuilder<T> _whereClauseBuilder;
 
-        internal SqlBuilder(IMetadataProvider<T> metadataProvider, IDialect dialect)
+        public SqlBuilder(IMetadataProvider<T> metadataProvider, IDialect dialect)
         {
             _metadataProvider = metadataProvider;
             _dialect = dialect;

@@ -7,13 +7,13 @@ using Reform.Objects;
 
 namespace Reform.Logic
 {
-    internal sealed class CommandBuilder<T> : ICommandBuilder<T> where T : class
+    public sealed class CommandBuilder<T> : ICommandBuilder<T> where T : class
     {
         private readonly IMetadataProvider<T> _metadataProvider;
         private readonly ISqlBuilder<T> _sqlBuilder;
         private readonly IDialect _dialect;
 
-        internal CommandBuilder(IMetadataProvider<T> metadataProvider, ISqlBuilder<T> sqlBuilder, IDialect dialect)
+        public CommandBuilder(IMetadataProvider<T> metadataProvider, ISqlBuilder<T> sqlBuilder, IDialect dialect)
         {
             _metadataProvider = metadataProvider;
             _sqlBuilder = sqlBuilder;

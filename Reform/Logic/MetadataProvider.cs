@@ -8,7 +8,7 @@ using Reform.Objects;
 
 namespace Reform.Logic
 {
-    internal sealed class MetadataProvider<T> : IMetadataProvider<T> where T : class
+    public sealed class MetadataProvider<T> : IMetadataProvider<T> where T : class
     {
         public Type Type { get; }
         public IEnumerable<PropertyMap> AllProperties { get; }
@@ -21,7 +21,7 @@ namespace Reform.Logic
         private readonly Dictionary<string, PropertyMap> _propertyMapLookupByPropertyName;
         private readonly Dictionary<string, PropertyMap> _propertyMapLookupByColumnName;
 
-        internal MetadataProvider() : this(typeof(T))
+        public MetadataProvider() : this(typeof(T))
         {
         }
 
@@ -31,21 +31,19 @@ namespace Reform.Logic
 
             var entityMetadataArray = (EntityMetadata[])Type.GetCustomAttributes(typeof(EntityMetadata), false);
 
-            if (entityMetadataArray.Length > 0)
-            {
-                EntityMetadata entityMetadata = entityMetadataArray[0];
+            if (entityMetadataArray.Length == 0)
+                throw new ApplicationException($"Type '{Type.Name}' is missing the [EntityMetadata] attribute");
 
-                DatabaseName = string.IsNullOrEmpty(entityMetadata.DatabaseName)
-                    ? ""
-                    : entityMetadata.DatabaseName;
+            EntityMetadata entityMetadata = entityMetadataArray[0];
 
-                TableName = entityMetadata.TableName;
-            }
-            else
-            {
-                DatabaseName = string.Empty;
-                TableName = string.Empty;
-            }
+            if (string.IsNullOrEmpty(entityMetadata.TableName))
+                throw new ApplicationException($"Type '{Type.Name}' has an [EntityMetadata] attribute with no TableName specified");
+
+            DatabaseName = string.IsNullOrEmpty(entityMetadata.DatabaseName)
+                ? ""
+                : entityMetadata.DatabaseName;
+
+            TableName = entityMetadata.TableName;
 
             List<PropertyMap> allProperties = GetProperties(Type).ToList();
 
@@ -96,6 +94,17 @@ namespace Reform.Logic
             {
                 if (_primaryKeyPropertyMap != null)
                     return _primaryKeyPropertyMap.ColumnName;
+
+                throw new ApplicationException($"Type '{Type}' does not have a property marked 'IsPrimaryKey'");
+            }
+        }
+
+        public Type PrimaryKeyPropertyType
+        {
+            get
+            {
+                if (_primaryKeyPropertyMap != null)
+                    return _primaryKeyPropertyMap.PropertyType;
 
                 throw new ApplicationException($"Type '{Type}' does not have a property marked 'IsPrimaryKey'");
             }

@@ -5,7 +5,7 @@ using Reform.Objects;
 
 namespace Reform.Interfaces
 {
-    internal interface ICommandBuilder<T> where T : class
+    public interface ICommandBuilder<T> where T : class
     {
         IDbCommand GetCountCommand(IDbConnection connection, Expression<Func<T, bool>> predicate);
         IDbCommand GetExistsCommand(IDbConnection connection, Expression<Func<T, bool>> predicate);

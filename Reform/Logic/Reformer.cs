@@ -1,70 +1,78 @@
 using System;
-using System.Collections.Generic;
 using Reform.Dialects;
 using Reform.Interfaces;
-using Unity;
-using Unity.Lifetime;
 
 namespace Reform.Logic
 {
     public static class Reformer
     {
-        private static readonly UnityContainer _unityContainer;
+        private static readonly ReformBuilder _builder = new ReformBuilder();
+        private static ReformFactory _factory;
+        private static readonly object _lock = new();
 
-        #region Constructor
-
-        static Reformer()
+        public static void UseSqlite(string connectionString = null)
         {
-            _unityContainer = new UnityContainer();
-
-            var dictionary = new Dictionary<Type, Type>
+            lock (_lock)
             {
-                { typeof (IDebugLogger), typeof (DebugLogger) },
-                { typeof (IMetadataProvider<>), typeof (MetadataProvider<>) },
-                { typeof (IReform<>), typeof (Reform<>) },
-                { typeof (IDataAccess<>), typeof (DataAccess<>) },
-                { typeof (IConnectionProvider<>), typeof (ConnectionProvider<>) },
-                { typeof (ICommandBuilder<>), typeof (CommandBuilder<>) },
-                { typeof (ISqlBuilder<>), typeof (SqlBuilder<>) },
-                { typeof (IValidator<>), typeof (Validator<>) },
-                { typeof (IScopeProvider), typeof (ScopeProvider) },
-                { typeof (IDialect), typeof (SqliteDialect) }
-            };
-
-            foreach (Type key in dictionary.Keys)
-                RegisterType(key, dictionary[key]);
+                _builder.UseSqlite(connectionString);
+                InvalidateFactory();
+            }
         }
 
-        #endregion
+        public static void UseSqlServer(string connectionString = null)
+        {
+            lock (_lock)
+            {
+                _builder.UseSqlServer(connectionString);
+                InvalidateFactory();
+            }
+        }
+
+        public static void UseMySql(string connectionString = null)
+        {
+            lock (_lock)
+            {
+                _builder.UseMySql(connectionString);
+                InvalidateFactory();
+            }
+        }
 
         public static void RegisterType(Type type, Type implementation)
         {
-            _unityContainer.RegisterType(type, implementation, new SingletonLifetimeManager());
-        }
-
-        public static void UseSqlite()
-        {
-            RegisterType(typeof(IDialect), typeof(SqliteDialect));
-        }
-
-        public static void UseSqlServer()
-        {
-            RegisterType(typeof(IDialect), typeof(SqlServerDialect));
-        }
-
-        public static void UseMySql()
-        {
-            RegisterType(typeof(IDialect), typeof(MySqlDialect));
+            lock (_lock)
+            {
+                _builder.Register(type, implementation);
+                InvalidateFactory();
+            }
         }
 
         public static IReform<T> Reform<T>() where T : class
         {
-            return _unityContainer.Resolve<IReform<T>>();
+            lock (_lock)
+            {
+                EnsureFactory();
+                return _factory.For<T>();
+            }
         }
 
         public static T Resolve<T>()
         {
-            return _unityContainer.Resolve<T>();
+            lock (_lock)
+            {
+                EnsureFactory();
+                return _factory.Resolve<T>();
+            }
+        }
+
+        private static void EnsureFactory()
+        {
+            _factory ??= _builder.Build();
+        }
+
+        private static void InvalidateFactory()
+        {
+            _factory?.Dispose();
+            _factory = null;
         }
     }
 }

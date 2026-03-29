@@ -14,6 +14,7 @@ namespace Reform.Interfaces
         string TableName { get; }
         string PrimaryKeyPropertyName { get; }
         string PrimaryKeyColumnName { get; }
+        Type PrimaryKeyPropertyType { get; }
         PropertyMap GetPropertyMapByPropertyName(string propertyName);
         PropertyMap GetPropertyMapByColumnName(string columnName);
         object GetPrimaryKeyValue(T instance);

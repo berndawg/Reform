@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq.Expressions;
-using System.Transactions;
+using System.Threading.Tasks;
 using Reform.Objects;
 
 namespace Reform.Interfaces
@@ -10,7 +10,6 @@ namespace Reform.Interfaces
     public interface IReform<T> where T : class
     {
         IDbConnection GetConnection();
-        TransactionScope GetScope();
 
         int Count();
         int Count(Expression<Func<T, bool>> predicate);
@@ -35,5 +34,26 @@ namespace Reform.Interfaces
         IEnumerable<T> Select();
         IEnumerable<T> Select(Expression<Func<T, bool>> predicate);
         IEnumerable<T> Select(QueryCriteria<T> queryCriteria);
+
+        Task<int> CountAsync();
+        Task<int> CountAsync(Expression<Func<T, bool>> predicate);
+
+        Task<bool> ExistsAsync(Expression<Func<T, bool>> predicate);
+
+        Task InsertAsync(T item);
+        Task InsertAsync(List<T> items);
+
+        Task UpdateAsync(T item);
+        Task UpdateAsync(List<T> list);
+
+        Task DeleteAsync(T item);
+        Task DeleteAsync(List<T> list);
+
+        Task<T> SelectSingleAsync(Expression<Func<T, bool>> predicate);
+        Task<T> SelectSingleOrDefaultAsync(Expression<Func<T, bool>> predicate);
+
+        Task<IEnumerable<T>> SelectAsync();
+        Task<IEnumerable<T>> SelectAsync(Expression<Func<T, bool>> predicate);
+        Task<IEnumerable<T>> SelectAsync(QueryCriteria<T> queryCriteria);
     }
 }
