@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using Reform;
 using Reform.Interfaces;
@@ -10,337 +6,336 @@ using Reform.Objects;
 using ReformTests.Objects;
 using Xunit;
 
-namespace ReformTests
+namespace ReformTests;
+
+public class UnitTests : IDisposable
 {
-    public class UnitTests : IDisposable
+    private readonly SqliteConnection _sharedConnection;
+    private readonly ReformFactory _reform;
+
+    public UnitTests()
     {
-        private readonly SqliteConnection _sharedConnection;
-        private readonly ReformFactory _reform;
-
-        public UnitTests()
-        {
-            _sharedConnection = new SqliteConnection("Data Source=InMemoryTest;Mode=Memory;Cache=Shared");
-            _sharedConnection.Open();
-
-            CreateTables(_sharedConnection);
-
-            _reform = new ReformBuilder()
-                .UseSqlite("Data Source=InMemoryTest;Mode=Memory;Cache=Shared")
-                .Register(typeof(IDebugLogger), typeof(TestDebugLogger))
-                .Build();
-        }
-
-        public void Dispose()
-        {
-            _reform.Dispose();
-            _sharedConnection.Close();
-            _sharedConnection.Dispose();
-        }
-
-        private void CreateTables(SqliteConnection connection)
-        {
-            using (var cmd = connection.CreateCommand())
-            {
-                cmd.CommandText = @"
-                    CREATE TABLE IF NOT EXISTS [Country] (
-                        [CountryId] INTEGER PRIMARY KEY AUTOINCREMENT,
-                        [CountryName] TEXT
-                    );
-                    CREATE TABLE IF NOT EXISTS [Airport] (
-                        [AirportId] INTEGER PRIMARY KEY AUTOINCREMENT,
-                        [AirportCode] TEXT NOT NULL,
-                        [AirportName] TEXT NOT NULL,
-                        [CountryId] INTEGER NOT NULL
-                    );
-                    DELETE FROM [Airport];
-                    DELETE FROM [Country];
-                ";
-                cmd.ExecuteNonQuery();
-            }
-        }
-
-        #region Sync Tests
-
-        [Fact]
-        public void Insert_And_Count()
-        {
-            IReform<Country> countryLogic = _reform.For<Country>();
-
-            countryLogic.Insert(new Country { CountryName = "Morocco" });
-            countryLogic.Insert(new Country { CountryName = "United States" });
-            countryLogic.Insert(new Country { CountryName = "Iceland" });
-
-            Assert.Equal(3, countryLogic.Count());
-        }
-
-        [Fact]
-        public void Count_With_Predicate()
-        {
-            IReform<Country> countryLogic = _reform.For<Country>();
-            IReform<Airport> airportLogic = _reform.For<Airport>();
-
-            countryLogic.Insert(new Country { CountryName = "USA" });
-            countryLogic.Insert(new Country { CountryName = "Peru" });
-
-            var countries = countryLogic.Select().ToList();
-            int usaId = countries.First(c => c.CountryName == "USA").CountryId;
-            int peruId = countries.First(c => c.CountryName == "Peru").CountryId;
-
-            airportLogic.Insert(new Airport { AirportCode = "LAX", AirportName = "Los Angeles", CountryId = usaId });
-            airportLogic.Insert(new Airport { AirportCode = "AUS", AirportName = "Austin", CountryId = usaId });
-            airportLogic.Insert(new Airport { AirportCode = "LIM", AirportName = "Lima", CountryId = peruId });
-
-            Assert.Equal(2, airportLogic.Count(x => x.CountryId == usaId));
-            Assert.Equal(1, airportLogic.Count(x => x.CountryId == peruId));
-        }
-
-        [Fact]
-        public void Exists_Returns_True_When_Found()
-        {
-            IReform<Airport> airportLogic = _reform.For<Airport>();
-
-            airportLogic.Insert(new Airport { AirportCode = "RAK", AirportName = "Marrakesh", CountryId = 1 });
-
-            Assert.True(airportLogic.Exists(x => x.AirportCode == "RAK"));
-        }
-
-        [Fact]
-        public void Exists_Returns_False_When_Not_Found()
-        {
-            IReform<Airport> airportLogic = _reform.For<Airport>();
-
-            Assert.False(airportLogic.Exists(x => x.AirportCode == "NONEXISTENT"));
-        }
-
-        [Fact]
-        public void Select_All()
-        {
-            IReform<Country> countryLogic = _reform.For<Country>();
-
-            countryLogic.Insert(new Country { CountryName = "France" });
-            countryLogic.Insert(new Country { CountryName = "Germany" });
-
-            var all = countryLogic.Select().ToList();
-            Assert.True(all.Count >= 2);
-        }
-
-        [Fact]
-        public void Select_With_Lambda()
-        {
-            IReform<Airport> airportLogic = _reform.For<Airport>();
-
-            airportLogic.Insert(new Airport { AirportCode = "CDG", AirportName = "Charles de Gaulle", CountryId = 10 });
-            airportLogic.Insert(new Airport { AirportCode = "ORY", AirportName = "Orly", CountryId = 10 });
-            airportLogic.Insert(new Airport { AirportCode = "FCO", AirportName = "Fiumicino", CountryId = 20 });
-
-            var frenchAirports = airportLogic.Select(x => x.CountryId == 10).ToList();
-            Assert.Equal(2, frenchAirports.Count);
-        }
-
-        [Fact]
-        public void SelectSingle()
-        {
-            IReform<Airport> airportLogic = _reform.For<Airport>();
-
-            airportLogic.Insert(new Airport { AirportCode = "NRT", AirportName = "Narita", CountryId = 30 });
-
-            Airport airport = airportLogic.SelectSingle(x => x.AirportCode == "NRT");
-            Assert.Equal("Narita", airport.AirportName);
-        }
-
-        [Fact]
-        public void SelectSingleOrDefault_Returns_Null_When_Not_Found()
-        {
-            IReform<Airport> airportLogic = _reform.For<Airport>();
-
-            Airport airport = airportLogic.SelectSingleOrDefault(x => x.AirportCode == "ZZZZZ");
-            Assert.Null(airport);
-        }
-
-        [Fact]
-        public void Update_Modifies_Record()
-        {
-            IReform<Country> countryLogic = _reform.For<Country>();
-
-            var country = new Country { CountryName = "Moroco" };
-            countryLogic.Insert(country);
-
-            country.CountryName = "Morocco";
-            countryLogic.Update(country);
-
-            Country updated = countryLogic.SelectSingle(x => x.CountryId == country.CountryId);
-            Assert.Equal("Morocco", updated.CountryName);
-        }
-
-        [Fact]
-        public void Delete_Removes_Record()
-        {
-            IReform<Airport> airportLogic = _reform.For<Airport>();
-
-            var airport = new Airport { AirportCode = "DEL", AirportName = "Delhi", CountryId = 40 };
-            airportLogic.Insert(airport);
-
-            Assert.True(airportLogic.Exists(x => x.AirportCode == "DEL"));
-
-            airportLogic.Delete(airport);
-
-            Assert.False(airportLogic.Exists(x => x.AirportCode == "DEL"));
-        }
-
-        [Fact]
-        public void Delete_List_Removes_Multiple()
-        {
-            IReform<Airport> airportLogic = _reform.For<Airport>();
-
-            var a1 = new Airport { AirportCode = "XX1", AirportName = "Test1", CountryId = 50 };
-            var a2 = new Airport { AirportCode = "XX2", AirportName = "Test2", CountryId = 50 };
-            airportLogic.Insert(a1);
-            airportLogic.Insert(a2);
-
-            Assert.True(airportLogic.Exists(x => x.AirportCode == "XX1"));
-            Assert.True(airportLogic.Exists(x => x.AirportCode == "XX2"));
-
-            airportLogic.Delete(new List<Airport> { a1, a2 });
-
-            Assert.False(airportLogic.Exists(x => x.AirportCode == "XX1"));
-            Assert.False(airportLogic.Exists(x => x.AirportCode == "XX2"));
-        }
-
-        [Fact]
-        public void Insert_List_Inserts_Multiple()
-        {
-            IReform<Country> countryLogic = _reform.For<Country>();
-
-            int before = countryLogic.Count();
-
-            countryLogic.Insert(new List<Country>
-            {
-                new Country { CountryName = "Japan" },
-                new Country { CountryName = "Brazil" }
-            });
-
-            int after = countryLogic.Count();
-            Assert.Equal(before + 2, after);
-        }
-
-        [Fact]
-        public void Select_With_And_Predicate()
-        {
-            IReform<Airport> airportLogic = _reform.For<Airport>();
-
-            airportLogic.Insert(new Airport { AirportCode = "JFK", AirportName = "John F Kennedy", CountryId = 100 });
-            airportLogic.Insert(new Airport { AirportCode = "EWR", AirportName = "Newark", CountryId = 100 });
-
-            var result = airportLogic.Select(x => x.CountryId == 100 && x.AirportCode == "JFK").ToList();
-            Assert.Single(result);
-            Assert.Equal("John F Kennedy", result[0].AirportName);
-        }
-
-        [Fact]
-        public void Select_With_Or_Predicate()
-        {
-            IReform<Airport> airportLogic = _reform.For<Airport>();
-
-            airportLogic.Insert(new Airport { AirportCode = "SYD", AirportName = "Sydney", CountryId = 200 });
-            airportLogic.Insert(new Airport { AirportCode = "MEL", AirportName = "Melbourne", CountryId = 200 });
-            airportLogic.Insert(new Airport { AirportCode = "BNE", AirportName = "Brisbane", CountryId = 200 });
-
-            var result = airportLogic.Select(x => x.AirportCode == "SYD" || x.AirportCode == "MEL").ToList();
-            Assert.Equal(2, result.Count);
-        }
-
-        [Fact]
-        public void Validation_Throws_On_Missing_Required_Field()
-        {
-            IReform<Airport> airportLogic = _reform.For<Airport>();
-
-            var airport = new Airport { AirportCode = "", AirportName = "Test", CountryId = 1 };
-
-            Assert.Throws<ApplicationException>(() => airportLogic.Insert(airport));
-        }
-
-        #endregion
-
-        #region Async Tests
-
-        [Fact]
-        public async Task Insert_And_Count_Async()
-        {
-            IReform<Country> countryLogic = _reform.For<Country>();
-
-            await countryLogic.InsertAsync(new Country { CountryName = "Argentina" });
-            await countryLogic.InsertAsync(new Country { CountryName = "Chile" });
-
-            Assert.Equal(2, await countryLogic.CountAsync());
-        }
-
-        [Fact]
-        public async Task Select_Async()
-        {
-            IReform<Airport> airportLogic = _reform.For<Airport>();
-
-            await airportLogic.InsertAsync(new Airport { AirportCode = "GRU", AirportName = "Guarulhos", CountryId = 300 });
-            await airportLogic.InsertAsync(new Airport { AirportCode = "GIG", AirportName = "Galeao", CountryId = 300 });
-
-            var airports = (await airportLogic.SelectAsync(x => x.CountryId == 300)).ToList();
-            Assert.Equal(2, airports.Count);
-        }
-
-        [Fact]
-        public async Task Update_Async()
-        {
-            IReform<Country> countryLogic = _reform.For<Country>();
-
-            var country = new Country { CountryName = "Barzil" };
-            await countryLogic.InsertAsync(country);
-
-            country.CountryName = "Brazil";
-            await countryLogic.UpdateAsync(country);
-
-            Country updated = await countryLogic.SelectSingleAsync(x => x.CountryId == country.CountryId);
-            Assert.Equal("Brazil", updated.CountryName);
-        }
-
-        [Fact]
-        public async Task Delete_Async()
-        {
-            IReform<Airport> airportLogic = _reform.For<Airport>();
-
-            var airport = new Airport { AirportCode = "EZE", AirportName = "Ezeiza", CountryId = 400 };
-            await airportLogic.InsertAsync(airport);
-
-            Assert.True(await airportLogic.ExistsAsync(x => x.AirportCode == "EZE"));
-
-            await airportLogic.DeleteAsync(airport);
-
-            Assert.False(await airportLogic.ExistsAsync(x => x.AirportCode == "EZE"));
-        }
-
-        [Fact]
-        public async Task SelectSingleOrDefault_Async_Returns_Null()
-        {
-            IReform<Airport> airportLogic = _reform.For<Airport>();
-
-            Airport airport = await airportLogic.SelectSingleOrDefaultAsync(x => x.AirportCode == "NOPE");
-            Assert.Null(airport);
-        }
-
-        [Fact]
-        public async Task Exists_Async_Returns_False_When_Not_Found()
-        {
-            IReform<Airport> airportLogic = _reform.For<Airport>();
-
-            Assert.False(await airportLogic.ExistsAsync(x => x.AirportCode == "NONEXISTENT"));
-        }
-
-        #endregion
+        _sharedConnection = new SqliteConnection("Data Source=InMemoryTest;Mode=Memory;Cache=Shared");
+        _sharedConnection.Open();
+
+        CreateTables(_sharedConnection);
+
+        _reform = new ReformBuilder()
+            .UseSqlite("Data Source=InMemoryTest;Mode=Memory;Cache=Shared")
+            .Register(typeof(IDebugLogger), typeof(TestDebugLogger))
+            .Build();
     }
 
-    internal class TestDebugLogger : IDebugLogger
+    public void Dispose()
     {
-        public void WriteLine(string stringValue)
+        _reform.Dispose();
+        _sharedConnection.Close();
+        _sharedConnection.Dispose();
+    }
+
+    private void CreateTables(SqliteConnection connection)
+    {
+        using (var cmd = connection.CreateCommand())
         {
-            Console.WriteLine(stringValue);
+            cmd.CommandText = @"
+                CREATE TABLE IF NOT EXISTS [Country] (
+                    [CountryId] INTEGER PRIMARY KEY AUTOINCREMENT,
+                    [CountryName] TEXT
+                );
+                CREATE TABLE IF NOT EXISTS [Airport] (
+                    [AirportId] INTEGER PRIMARY KEY AUTOINCREMENT,
+                    [AirportCode] TEXT NOT NULL,
+                    [AirportName] TEXT NOT NULL,
+                    [CountryId] INTEGER NOT NULL
+                );
+                DELETE FROM [Airport];
+                DELETE FROM [Country];
+            ";
+            cmd.ExecuteNonQuery();
         }
+    }
+
+    #region Sync Tests
+
+    [Fact]
+    public void Insert_And_Count()
+    {
+        IReform<Country> countryLogic = _reform.For<Country>();
+
+        countryLogic.Insert(new Country { CountryName = "Morocco" });
+        countryLogic.Insert(new Country { CountryName = "United States" });
+        countryLogic.Insert(new Country { CountryName = "Iceland" });
+
+        Assert.Equal(3, countryLogic.Count());
+    }
+
+    [Fact]
+    public void Count_With_Predicate()
+    {
+        IReform<Country> countryLogic = _reform.For<Country>();
+        IReform<Airport> airportLogic = _reform.For<Airport>();
+
+        countryLogic.Insert(new Country { CountryName = "USA" });
+        countryLogic.Insert(new Country { CountryName = "Peru" });
+
+        var countries = countryLogic.Select().ToList();
+        int usaId = countries.First(c => c.CountryName == "USA").CountryId;
+        int peruId = countries.First(c => c.CountryName == "Peru").CountryId;
+
+        airportLogic.Insert(new Airport { AirportCode = "LAX", AirportName = "Los Angeles", CountryId = usaId });
+        airportLogic.Insert(new Airport { AirportCode = "AUS", AirportName = "Austin", CountryId = usaId });
+        airportLogic.Insert(new Airport { AirportCode = "LIM", AirportName = "Lima", CountryId = peruId });
+
+        Assert.Equal(2, airportLogic.Count(x => x.CountryId == usaId));
+        Assert.Equal(1, airportLogic.Count(x => x.CountryId == peruId));
+    }
+
+    [Fact]
+    public void Exists_Returns_True_When_Found()
+    {
+        IReform<Airport> airportLogic = _reform.For<Airport>();
+
+        airportLogic.Insert(new Airport { AirportCode = "RAK", AirportName = "Marrakesh", CountryId = 1 });
+
+        Assert.True(airportLogic.Exists(x => x.AirportCode == "RAK"));
+    }
+
+    [Fact]
+    public void Exists_Returns_False_When_Not_Found()
+    {
+        IReform<Airport> airportLogic = _reform.For<Airport>();
+
+        Assert.False(airportLogic.Exists(x => x.AirportCode == "NONEXISTENT"));
+    }
+
+    [Fact]
+    public void Select_All()
+    {
+        IReform<Country> countryLogic = _reform.For<Country>();
+
+        countryLogic.Insert(new Country { CountryName = "France" });
+        countryLogic.Insert(new Country { CountryName = "Germany" });
+
+        var all = countryLogic.Select().ToList();
+        Assert.True(all.Count >= 2);
+    }
+
+    [Fact]
+    public void Select_With_Lambda()
+    {
+        IReform<Airport> airportLogic = _reform.For<Airport>();
+
+        airportLogic.Insert(new Airport { AirportCode = "CDG", AirportName = "Charles de Gaulle", CountryId = 10 });
+        airportLogic.Insert(new Airport { AirportCode = "ORY", AirportName = "Orly", CountryId = 10 });
+        airportLogic.Insert(new Airport { AirportCode = "FCO", AirportName = "Fiumicino", CountryId = 20 });
+
+        var frenchAirports = airportLogic.Select(x => x.CountryId == 10).ToList();
+        Assert.Equal(2, frenchAirports.Count);
+    }
+
+    [Fact]
+    public void SelectSingle()
+    {
+        IReform<Airport> airportLogic = _reform.For<Airport>();
+
+        airportLogic.Insert(new Airport { AirportCode = "NRT", AirportName = "Narita", CountryId = 30 });
+
+        Airport airport = airportLogic.SelectSingle(x => x.AirportCode == "NRT");
+        Assert.Equal("Narita", airport.AirportName);
+    }
+
+    [Fact]
+    public void SelectSingleOrDefault_Returns_Null_When_Not_Found()
+    {
+        IReform<Airport> airportLogic = _reform.For<Airport>();
+
+        Airport? airport = airportLogic.SelectSingleOrDefault(x => x.AirportCode == "ZZZZZ");
+        Assert.Null(airport);
+    }
+
+    [Fact]
+    public void Update_Modifies_Record()
+    {
+        IReform<Country> countryLogic = _reform.For<Country>();
+
+        var country = new Country { CountryName = "Moroco" };
+        countryLogic.Insert(country);
+
+        country.CountryName = "Morocco";
+        countryLogic.Update(country);
+
+        Country updated = countryLogic.SelectSingle(x => x.CountryId == country.CountryId);
+        Assert.Equal("Morocco", updated.CountryName);
+    }
+
+    [Fact]
+    public void Delete_Removes_Record()
+    {
+        IReform<Airport> airportLogic = _reform.For<Airport>();
+
+        var airport = new Airport { AirportCode = "DEL", AirportName = "Delhi", CountryId = 40 };
+        airportLogic.Insert(airport);
+
+        Assert.True(airportLogic.Exists(x => x.AirportCode == "DEL"));
+
+        airportLogic.Delete(airport);
+
+        Assert.False(airportLogic.Exists(x => x.AirportCode == "DEL"));
+    }
+
+    [Fact]
+    public void Delete_List_Removes_Multiple()
+    {
+        IReform<Airport> airportLogic = _reform.For<Airport>();
+
+        var a1 = new Airport { AirportCode = "XX1", AirportName = "Test1", CountryId = 50 };
+        var a2 = new Airport { AirportCode = "XX2", AirportName = "Test2", CountryId = 50 };
+        airportLogic.Insert(a1);
+        airportLogic.Insert(a2);
+
+        Assert.True(airportLogic.Exists(x => x.AirportCode == "XX1"));
+        Assert.True(airportLogic.Exists(x => x.AirportCode == "XX2"));
+
+        airportLogic.Delete(new List<Airport> { a1, a2 });
+
+        Assert.False(airportLogic.Exists(x => x.AirportCode == "XX1"));
+        Assert.False(airportLogic.Exists(x => x.AirportCode == "XX2"));
+    }
+
+    [Fact]
+    public void Insert_List_Inserts_Multiple()
+    {
+        IReform<Country> countryLogic = _reform.For<Country>();
+
+        int before = countryLogic.Count();
+
+        countryLogic.Insert(new List<Country>
+        {
+            new Country { CountryName = "Japan" },
+            new Country { CountryName = "Brazil" }
+        });
+
+        int after = countryLogic.Count();
+        Assert.Equal(before + 2, after);
+    }
+
+    [Fact]
+    public void Select_With_And_Predicate()
+    {
+        IReform<Airport> airportLogic = _reform.For<Airport>();
+
+        airportLogic.Insert(new Airport { AirportCode = "JFK", AirportName = "John F Kennedy", CountryId = 100 });
+        airportLogic.Insert(new Airport { AirportCode = "EWR", AirportName = "Newark", CountryId = 100 });
+
+        var result = airportLogic.Select(x => x.CountryId == 100 && x.AirportCode == "JFK").ToList();
+        Assert.Single(result);
+        Assert.Equal("John F Kennedy", result[0].AirportName);
+    }
+
+    [Fact]
+    public void Select_With_Or_Predicate()
+    {
+        IReform<Airport> airportLogic = _reform.For<Airport>();
+
+        airportLogic.Insert(new Airport { AirportCode = "SYD", AirportName = "Sydney", CountryId = 200 });
+        airportLogic.Insert(new Airport { AirportCode = "MEL", AirportName = "Melbourne", CountryId = 200 });
+        airportLogic.Insert(new Airport { AirportCode = "BNE", AirportName = "Brisbane", CountryId = 200 });
+
+        var result = airportLogic.Select(x => x.AirportCode == "SYD" || x.AirportCode == "MEL").ToList();
+        Assert.Equal(2, result.Count);
+    }
+
+    [Fact]
+    public void Validation_Throws_On_Missing_Required_Field()
+    {
+        IReform<Airport> airportLogic = _reform.For<Airport>();
+
+        var airport = new Airport { AirportCode = "", AirportName = "Test", CountryId = 1 };
+
+        Assert.Throws<ApplicationException>(() => airportLogic.Insert(airport));
+    }
+
+    #endregion
+
+    #region Async Tests
+
+    [Fact]
+    public async Task Insert_And_Count_Async()
+    {
+        IReform<Country> countryLogic = _reform.For<Country>();
+
+        await countryLogic.InsertAsync(new Country { CountryName = "Argentina" });
+        await countryLogic.InsertAsync(new Country { CountryName = "Chile" });
+
+        Assert.Equal(2, await countryLogic.CountAsync());
+    }
+
+    [Fact]
+    public async Task Select_Async()
+    {
+        IReform<Airport> airportLogic = _reform.For<Airport>();
+
+        await airportLogic.InsertAsync(new Airport { AirportCode = "GRU", AirportName = "Guarulhos", CountryId = 300 });
+        await airportLogic.InsertAsync(new Airport { AirportCode = "GIG", AirportName = "Galeao", CountryId = 300 });
+
+        var airports = (await airportLogic.SelectAsync(x => x.CountryId == 300)).ToList();
+        Assert.Equal(2, airports.Count);
+    }
+
+    [Fact]
+    public async Task Update_Async()
+    {
+        IReform<Country> countryLogic = _reform.For<Country>();
+
+        var country = new Country { CountryName = "Barzil" };
+        await countryLogic.InsertAsync(country);
+
+        country.CountryName = "Brazil";
+        await countryLogic.UpdateAsync(country);
+
+        Country updated = await countryLogic.SelectSingleAsync(x => x.CountryId == country.CountryId);
+        Assert.Equal("Brazil", updated.CountryName);
+    }
+
+    [Fact]
+    public async Task Delete_Async()
+    {
+        IReform<Airport> airportLogic = _reform.For<Airport>();
+
+        var airport = new Airport { AirportCode = "EZE", AirportName = "Ezeiza", CountryId = 400 };
+        await airportLogic.InsertAsync(airport);
+
+        Assert.True(await airportLogic.ExistsAsync(x => x.AirportCode == "EZE"));
+
+        await airportLogic.DeleteAsync(airport);
+
+        Assert.False(await airportLogic.ExistsAsync(x => x.AirportCode == "EZE"));
+    }
+
+    [Fact]
+    public async Task SelectSingleOrDefault_Async_Returns_Null()
+    {
+        IReform<Airport> airportLogic = _reform.For<Airport>();
+
+        Airport? airport = await airportLogic.SelectSingleOrDefaultAsync(x => x.AirportCode == "NOPE");
+        Assert.Null(airport);
+    }
+
+    [Fact]
+    public async Task Exists_Async_Returns_False_When_Not_Found()
+    {
+        IReform<Airport> airportLogic = _reform.For<Airport>();
+
+        Assert.False(await airportLogic.ExistsAsync(x => x.AirportCode == "NONEXISTENT"));
+    }
+
+    #endregion
+}
+
+internal class TestDebugLogger : IDebugLogger
+{
+    public void WriteLine(string stringValue)
+    {
+        Console.WriteLine(stringValue);
     }
 }

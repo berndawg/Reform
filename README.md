@@ -1,83 +1,112 @@
 # Reform
 
-Reform is an ORM that's extremely easy to use and extend. Stop writing SQL! Use the IReform interface instead. It includes methods like Count, Exists, Select, Insert, Update, Delete, Merge, and even BulkInsert. It supports Symmetric Key entryption and it's fully customizable allowing it to be used even without SQL Server. 
+Reform is an ORM that’s extremely easy to use and extend. Stop writing SQL! Use the IReform interface instead. It includes methods like Count, Exists, Select, Insert, Update, and Delete. It supports multiple SQL dialects (SQLite, SQL Server, MySQL) and is fully customizable via dependency injection.
 
-Reform puts the C# developer back in control of how data is shaped and manipulated. Define POCOs, add Reform code attributes, and you're done. It includes support for validation and transactions and it’s the perfect tool for ETL applications. Forget all about Martin Fowler’s silly IRepository pattern. Use IReform instead. You’ll be glad you did!
+Reform puts the C# developer back in control of how data is shaped and manipulated. Define POCOs, add Reform attributes, and you’re done. It includes support for validation, transactions, and async operations.
 
-The IReform<T> interface includes the following methods:
+Reform currently supports SQLite, SQL Server, and MySQL and can be extended to include support for non-database data sources, e.g. Excel spreadsheets.
 
-- SqlConnection GetConnection()
-- TransactionScope GetScope();
-- int Count();
-- int Count(SqlConnection connection);
-- int Count(List<Filter> filters);
-- int Count(SqlConnection connection, List<Filter> filters);
-- bool Exists(Filter filter);
-- bool Exists(List<Filter> filters);
-- bool Exists(SqlConnection connection, List<Filter> filters);
-- void Insert(T item);
-- void Insert(List<T> items);
-- void Insert(SqlConnection connection, T item);
-- void Insert(SqlConnection connection, List<T> items);
-- void Update(T item);
-- void Update(List<T> list);
-- void Update(SqlConnection connection, T item);
-- void Update(SqlConnection connection, List<T> list);
-- void Delete(T item);
-- void Delete(List<T> list);
-- void Delete(SqlConnection connection, T item);
-- void Delete(SqlConnection connection, List<T> list);
-- T SelectSingle(List<Filter> filters);
-- T SelectSingle(List<Filter> filters, T defaultObject);
-- T SelectSingle(SqlConnection connection, List<Filter> filters);
-- T SelectSingle(SqlConnection connection, List<Filter> filters, T defaultObject);
-- IEnumerable<T> Select();
-- IEnumerable<T> Select(Filter filter);
-- IEnumerable<T> Select(List<Filter> filters);
-- IEnumerable<T> Select(QueryCriteria queryCriteria);
-- IEnumerable<T> Select(QueryCriteria queryCriteria, out int totalCount);
-- IEnumerable<T> Select(SqlConnection connection, List<Filter> filters);
-- IEnumerable<T> Select(SqlConnection connection, QueryCriteria queryCriteria);
-- void Truncate();
-- void Truncate(SqlConnection connection);
-- void BulkInsert(List<T> list);
-- void BulkInsert(SqlConnection connection, List<T> list);
-- void Merge(List<T> list);
-- void Merge(List<T> list, Filter filter);
-- void Merge(List<T> list, List<Filter> filters);
-- void Merge(SqlConnection connection, List<T> list, List<Filter> filters);
+## Setup
 
-In addition, the Reform<T> implementation supports the following overrides:
-- SqlConnection OnGetConnection()
-- TransactionScope OnGetScope()
-- void OnValidate(SqlConnection connection, T item)
-- int OnCount(SqlConnection connection, List<Filter> filters)
-- bool OnExists(SqlConnection connection, List<Filter> filters)
-- IEnumerable<T> OnSelect(SqlConnection connection, QueryCriteria queryCriteria)
-- void OnInsert(SqlConnection connection, T item)
-- void OnUpdate(SqlConnection connection, T item)
-- void OnDelete(SqlConnection connection, T item)
-- void OnBeforeInsert(SqlConnection connection, T item)
-- void OnBeforeUpdate(SqlConnection connection, T item)
-- void OnAfterInsert(SqlConnection connection, T item)
-- void OnAfterUpdate(SqlConnection connection, T item)
-- void OnBeforeDelete(SqlConnection connection, T item)
-- void OnAfterDelete(SqlConnection connection, T item)
-- void OnTruncate(SqlConnection connection)
-- void OnBulkInsert(SqlConnection connection, List<T> list)
-- void OnMerge(SqlConnection connection, List<T> list, List<Filter> filters)
+Use `ReformBuilder` to configure and build a `ReformFactory`:
 
-The Reform implementation is also customizable.  You can register your own types to replace portions of Reform functionality.  Just use the Reformer.RegisterType method to register your own custom implementation of any of the Reform interfaces.
+    var factory = new ReformBuilder()
+        .UseSqlite("Data Source=mydb.db")       // or .UseSqlServer(...) or .UseMySql(...)
+        .Build();
 
-Sample usage
+    IReform<Country> countries = factory.For<Country>();
+
+The `ReformFactory` implements `IDisposable` and should be disposed when no longer needed.
+
+## IReform&lt;T&gt; Interface
+
+The `IReform<T>` interface includes the following methods:
+
+Synchronous:
+
+- IDbConnection GetConnection()
+- int Count()
+- int Count(Expression&lt;Func&lt;T, bool&gt;&gt; predicate)
+- bool Exists(Expression&lt;Func&lt;T, bool&gt;&gt; predicate)
+- void Insert(T item)
+- void Insert(List&lt;T&gt; items)
+- void Insert(IDbConnection connection, T item)
+- void Update(T item)
+- void Update(List&lt;T&gt; list)
+- void Update(IDbConnection connection, T item)
+- void Delete(T item)
+- void Delete(List&lt;T&gt; list)
+- void Delete(IDbConnection connection, T item)
+- T SelectSingle(Expression&lt;Func&lt;T, bool&gt;&gt; predicate)
+- T SelectSingleOrDefault(Expression&lt;Func&lt;T, bool&gt;&gt; predicate)
+- IEnumerable&lt;T&gt; Select()
+- IEnumerable&lt;T&gt; Select(Expression&lt;Func&lt;T, bool&gt;&gt; predicate)
+- IEnumerable&lt;T&gt; Select(QueryCriteria&lt;T&gt; queryCriteria)
+
+Async:
+
+- Task&lt;int&gt; CountAsync()
+- Task&lt;int&gt; CountAsync(Expression&lt;Func&lt;T, bool&gt;&gt; predicate)
+- Task&lt;bool&gt; ExistsAsync(Expression&lt;Func&lt;T, bool&gt;&gt; predicate)
+- Task InsertAsync(T item)
+- Task InsertAsync(List&lt;T&gt; items)
+- Task UpdateAsync(T item)
+- Task UpdateAsync(List&lt;T&gt; list)
+- Task DeleteAsync(T item)
+- Task DeleteAsync(List&lt;T&gt; list)
+- Task&lt;T&gt; SelectSingleAsync(Expression&lt;Func&lt;T, bool&gt;&gt; predicate)
+- Task&lt;T&gt; SelectSingleOrDefaultAsync(Expression&lt;Func&lt;T, bool&gt;&gt; predicate)
+- Task&lt;IEnumerable&lt;T&gt;&gt; SelectAsync()
+- Task&lt;IEnumerable&lt;T&gt;&gt; SelectAsync(Expression&lt;Func&lt;T, bool&gt;&gt; predicate)
+- Task&lt;IEnumerable&lt;T&gt;&gt; SelectAsync(QueryCriteria&lt;T&gt; queryCriteria)
+
+## Overrideable Methods
+
+The `Reform<T>` implementation supports the following overrides (sync and async):
+
+- IDbConnection OnGetConnection()
+- void OnValidate(IDbConnection connection, T item)
+- int OnCount(IDbConnection connection, Expression&lt;Func&lt;T, bool&gt;&gt; predicate)
+- Task&lt;int&gt; OnCountAsync(IDbConnection connection, Expression&lt;Func&lt;T, bool&gt;&gt; predicate)
+- bool OnExists(IDbConnection connection, Expression&lt;Func&lt;T, bool&gt;&gt; predicate)
+- Task&lt;bool&gt; OnExistsAsync(IDbConnection connection, Expression&lt;Func&lt;T, bool&gt;&gt; predicate)
+- IEnumerable&lt;T&gt; OnSelect(IDbConnection connection, QueryCriteria&lt;T&gt; queryCriteria)
+- Task&lt;IEnumerable&lt;T&gt;&gt; OnSelectAsync(IDbConnection connection, QueryCriteria&lt;T&gt; queryCriteria)
+- void OnInsert(IDbConnection connection, IDbTransaction transaction, T item)
+- Task OnInsertAsync(IDbConnection connection, IDbTransaction transaction, T item)
+- void OnUpdate(IDbConnection connection, IDbTransaction transaction, T item)
+- Task OnUpdateAsync(IDbConnection connection, IDbTransaction transaction, T item)
+- void OnDelete(IDbConnection connection, IDbTransaction transaction, T item)
+- Task OnDeleteAsync(IDbConnection connection, IDbTransaction transaction, T item)
+- void OnBeforeInsert(IDbConnection connection, T item)
+- void OnBeforeUpdate(IDbConnection connection, T item)
+- void OnAfterInsert(IDbConnection connection, T item)
+- void OnAfterUpdate(IDbConnection connection, T item)
+- void OnBeforeDelete(IDbConnection connection, T item)
+- void OnAfterDelete(IDbConnection connection, T item)
+- Task OnBeforeInsertAsync(IDbConnection connection, T item)
+- Task OnBeforeUpdateAsync(IDbConnection connection, T item)
+- Task OnAfterInsertAsync(IDbConnection connection, T item)
+- Task OnAfterUpdateAsync(IDbConnection connection, T item)
+- Task OnBeforeDeleteAsync(IDbConnection connection, T item)
+- Task OnAfterDeleteAsync(IDbConnection connection, T item)
+
+## Customization
+
+The Reform implementation is customizable. Use the `ReformBuilder.Register` method to replace any of the Reform interfaces with your own implementation:
+
+    var factory = new ReformBuilder()
+        .UseSqlite("Data Source=mydb.db")
+        .Register(typeof(IDebugLogger), typeof(MyCustomLogger))
+        .Build();
+
+## Sample Usage
 
     using System;
     using System.Collections.Generic;
+    using Reform;
     using Reform.Attributes;
-    using Reform.Enum;
     using Reform.Interfaces;
-    using Reform.Logic;
-    using Reform.Objects;
 
     namespace ReformSample
     {
@@ -85,36 +114,27 @@ Sample usage
         {
             static void Main(string[] args)
             {
-                Reformer.RegisterType(typeof(IConnectionStringProvider), typeof(ConnectionStringProvider));
+                using var factory = new ReformBuilder()
+                    .UseSqlServer("Server=.;Database=master;Trusted_Connection=True;")
+                    .Build();
 
-                IReform<SysObjects> logic = Reformer.Reform<SysObjects>();
+                IReform<SysObjects> logic = factory.For<SysObjects>();
 
-                IEnumerable<SysObjects> list = logic.Select(new Filter(nameof(SysObjects.Name), Operator.Like, "SYS%"));
+                IEnumerable<SysObjects> list = logic.Select(x => x.Name.StartsWith("sys"));
 
                 foreach (var item in list)
                     Console.WriteLine(item.Name);
-
-                Console.ReadKey();
             }
         }
 
-        [EntityMetadata(DatabaseName="master", TableName="sysobjects")]
+        [EntityMetadata(DatabaseName = "master", TableName = "sysobjects")]
         class SysObjects
         {
-            [PropertyMetadata(ColumnName = "id")]
+            [PropertyMetadata(ColumnName = "id", IsPrimaryKey = true)]
             public int Id { get; set; }
 
             [PropertyMetadata(ColumnName = "name")]
             public string Name { get; set; }
         }
-
-        class ConnectionStringProvider : IConnectionStringProvider
-        {
-            public string GetConnectionString(string databaseName)
-            {
-                return $@"Server=.;Database={databaseName};Trusted_Connection=True;";
-            }
-        }
     }
 
- 

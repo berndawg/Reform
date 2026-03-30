@@ -1,31 +1,29 @@
-using System;
 using Microsoft.Extensions.DependencyInjection;
 using Reform.Interfaces;
 
-namespace Reform
+namespace Reform;
+
+public class ReformFactory : IDisposable
 {
-    public class ReformFactory : IDisposable
+    private readonly ServiceProvider _serviceProvider;
+
+    internal ReformFactory(ServiceProvider serviceProvider)
     {
-        private readonly ServiceProvider _serviceProvider;
+        _serviceProvider = serviceProvider;
+    }
 
-        internal ReformFactory(ServiceProvider serviceProvider)
-        {
-            _serviceProvider = serviceProvider;
-        }
+    public IReform<T> For<T>() where T : class
+    {
+        return _serviceProvider.GetRequiredService<IReform<T>>();
+    }
 
-        public IReform<T> For<T>() where T : class
-        {
-            return _serviceProvider.GetRequiredService<IReform<T>>();
-        }
+    public T Resolve<T>()
+    {
+        return _serviceProvider.GetRequiredService<T>();
+    }
 
-        public T Resolve<T>()
-        {
-            return _serviceProvider.GetRequiredService<T>();
-        }
-
-        public void Dispose()
-        {
-            _serviceProvider?.Dispose();
-        }
+    public void Dispose()
+    {
+        _serviceProvider?.Dispose();
     }
 }

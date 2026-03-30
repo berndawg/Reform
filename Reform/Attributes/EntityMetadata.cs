@@ -1,10 +1,7 @@
-using System;
+namespace Reform.Attributes;
 
-namespace Reform.Attributes
+public class EntityMetadata : Attribute
 {
-    public class EntityMetadata : Attribute
-    {
-        public string DatabaseName { get; set; }
-        public string TableName { get; set; }
-    }
+    public string? DatabaseName { get; init; }
+    public string TableName { get; init; }
 }
