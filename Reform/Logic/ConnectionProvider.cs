@@ -1,64 +1,55 @@
-using System;
 using System.Data;
 using System.Data.Common;
-using System.Threading.Tasks;
 using Reform.Interfaces;
 
-namespace Reform.Logic
+namespace Reform.Logic;
+
+public sealed class ConnectionProvider<T>(
+    IMetadataProvider<T> metadataProvider,
+    IDialect dialect,
+    IConnectionStringProvider? connectionStringProvider = null)
+    : IConnectionProvider<T>
+    where T : class
 {
-    public sealed class ConnectionProvider<T> : IConnectionProvider<T> where T : class
+    public IDbConnection GetConnection()
     {
-        private readonly IConnectionStringProvider _connectionStringProvider;
-        private readonly IMetadataProvider<T> _metadataProvider;
-        private readonly IDialect _dialect;
+        if (connectionStringProvider == null)
+            throw new InvalidOperationException(
+                "No connection string configured. Provide a connection string (e.g., UseSqlite(\"...\")) " +
+                "or register a custom IConnectionStringProvider.");
 
-        public ConnectionProvider(IMetadataProvider<T> metadataProvider, IDialect dialect, IConnectionStringProvider connectionStringProvider = null)
+        var connectionString = connectionStringProvider.GetConnectionString(metadataProvider.DatabaseName);
+
+        try
         {
-            _connectionStringProvider = connectionStringProvider;
-            _metadataProvider = metadataProvider;
-            _dialect = dialect;
+            var connection = dialect.CreateConnection(connectionString);
+            connection.Open();
+            return connection;
         }
-
-        public IDbConnection GetConnection()
+        catch (Exception ex)
         {
-            if (_connectionStringProvider == null)
-                throw new InvalidOperationException(
-                    "No connection string configured. Provide a connection string (e.g., UseSqlite(\"...\")) " +
-                    "or register a custom IConnectionStringProvider.");
-
-            string connectionString = _connectionStringProvider.GetConnectionString(_metadataProvider.DatabaseName);
-
-            try
-            {
-                var connection = _dialect.CreateConnection(connectionString);
-                connection.Open();
-                return connection;
-            }
-            catch (Exception ex)
-            {
-                throw new ApplicationException($"Failed to open database connection for '{_metadataProvider.DatabaseName}'", ex);
-            }
+            throw new ApplicationException($"Failed to open database connection for '{metadataProvider.DatabaseName}'", ex);
         }
+    }
 
-        public async Task<DbConnection> GetConnectionAsync()
+    public async Task<DbConnection> GetConnectionAsync()
+    {
+        if (connectionStringProvider == null)
+            throw new InvalidOperationException(
+                "No connection string configured. Provide a connection string (e.g., UseSqlite(\"...\")) " +
+                "or register a custom IConnectionStringProvider.");
+
+        var connectionString = connectionStringProvider.GetConnectionString(metadataProvider.DatabaseName);
+
+        try
         {
-            if (_connectionStringProvider == null)
-                throw new InvalidOperationException(
-                    "No connection string configured. Provide a connection string (e.g., UseSqlite(\"...\")) " +
-                    "or register a custom IConnectionStringProvider.");
-
-            string connectionString = _connectionStringProvider.GetConnectionString(_metadataProvider.DatabaseName);
-
-            try
-            {
-                var connection = (DbConnection)_dialect.CreateConnection(connectionString);
-                await connection.OpenAsync();
-                return connection;
-            }
-            catch (Exception ex)
-            {
-                throw new ApplicationException($"Failed to open database connection for '{_metadataProvider.DatabaseName}'", ex);
-            }
+            var connection = (DbConnection)dialect.CreateConnection(connectionString);
+            await connection.OpenAsync();
+            return connection;
+        }
+        catch (Exception ex)
+        {
+            throw new ApplicationException($"Failed to open database connection for '{metadataProvider.DatabaseName}'", ex);
         }
     }
 }

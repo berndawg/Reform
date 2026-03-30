@@ -6,7 +6,9 @@
       "Bash(dotnet restore:*)",
       "Bash(dotnet build:*)",
       "Bash(dotnet test:*)",
-      "Bash(grep -r \"Sqlite\\\\|SqlConnection\\\\|last_insert_rowid\\\\|SCOPE_IDENTITY\\\\|LIMIT.*OFFSET\\\\|ROW_NUMBER\" /c/Users/bseab/OneDrive/Repos/Reform/Reform --include=*.cs)"
+      "Bash(grep -r \"Sqlite\\\\|SqlConnection\\\\|last_insert_rowid\\\\|SCOPE_IDENTITY\\\\|LIMIT.*OFFSET\\\\|ROW_NUMBER\" /c/Users/bseab/OneDrive/Repos/Reform/Reform --include=*.cs)",
+      "Bash(dotnet list:*)",
+      "Bash(dotnet add:*)"
     ]
   }
 }

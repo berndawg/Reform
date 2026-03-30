@@ -1,11 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+namespace Reform.Interfaces;
 
-namespace Reform.Interfaces
+public interface IDebugLogger
 {
-    public interface IDebugLogger
-    {
-        void WriteLine(string stringValue);
-    }
+    void WriteLine(string stringValue);
 }

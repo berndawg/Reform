@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Linq.Expressions;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -10,226 +7,217 @@ using Reform.Interfaces;
 using Reform.Objects;
 
 [assembly: InternalsVisibleTo("ReformTests")]
-namespace Reform.Logic
+namespace Reform.Logic;
+
+public sealed class SqlBuilder<T>(IMetadataProvider<T> metadataProvider, IDialect dialect) : ISqlBuilder<T>
+    where T : class
 {
-    public sealed class SqlBuilder<T> : ISqlBuilder<T> where T : class
+    private readonly WhereClauseBuilder<T> _whereClauseBuilder = new(metadataProvider, dialect);
+
+    public string GetCountSql(Expression<Func<T, bool>>? predicate, out Dictionary<string, object> parameters)
     {
-        private readonly IMetadataProvider<T> _metadataProvider;
-        private readonly IDialect _dialect;
-        private readonly WhereClauseBuilder<T> _whereClauseBuilder;
+        var (whereClause, whereParams) = BuildWhereClause(predicate);
+        parameters = whereParams;
 
-        public SqlBuilder(IMetadataProvider<T> metadataProvider, IDialect dialect)
-        {
-            _metadataProvider = metadataProvider;
-            _dialect = dialect;
-            _whereClauseBuilder = new WhereClauseBuilder<T>(metadataProvider, dialect);
-        }
+        var fromClause = GetFromClause();
+        var where = string.IsNullOrEmpty(whereClause) ? "" : $" WHERE {whereClause}";
 
-        public string GetCountSql(Expression<Func<T, bool>> predicate, out Dictionary<string, object> parameters)
-        {
-            var (whereClause, whereParams) = BuildWhereClause(predicate);
-            parameters = whereParams;
+        return $"SELECT COUNT(1){fromClause}{where}";
+    }
 
-            string fromClause = GetFromClause();
-            string where = string.IsNullOrEmpty(whereClause) ? "" : $" WHERE {whereClause}";
+    public string GetExistsSql(Expression<Func<T, bool>> predicate, out Dictionary<string, object> parameters)
+    {
+        var (whereClause, whereParams) = BuildWhereClause(predicate);
+        parameters = whereParams;
 
-            return $"SELECT COUNT(1){fromClause}{where}";
-        }
+        var fromClause = GetFromClause();
+        var where = string.IsNullOrEmpty(whereClause) ? "" : $" WHERE {whereClause}";
 
-        public string GetExistsSql(Expression<Func<T, bool>> predicate, out Dictionary<string, object> parameters)
-        {
-            var (whereClause, whereParams) = BuildWhereClause(predicate);
-            parameters = whereParams;
+        return $"SELECT EXISTS(SELECT 1{fromClause}{where})";
+    }
 
-            string fromClause = GetFromClause();
-            string where = string.IsNullOrEmpty(whereClause) ? "" : $" WHERE {whereClause}";
+    public string GetSelectSql(QueryCriteria<T> queryCriteria, ref Dictionary<string, object> parameters)
+    {
+        var pageCriteria = queryCriteria.PageCriteria;
+        var doPaging = pageCriteria != null && pageCriteria.PageSize != 0 && pageCriteria.Page != 0;
 
-            return $"SELECT EXISTS(SELECT 1{fromClause}{where})";
-        }
+        return doPaging
+            ? GetSelectSqlPaged(pageCriteria!, ref parameters, queryCriteria)
+            : GetSelectSqlNonPaged(ref parameters, queryCriteria);
+    }
 
-        public string GetSelectSql(QueryCriteria<T> queryCriteria, ref Dictionary<string, object> parameters)
-        {
-            PageCriteria pageCriteria = queryCriteria.PageCriteria;
-            bool doPaging = pageCriteria != null && pageCriteria.PageSize != 0 && pageCriteria.Page != 0;
+    public string GetInsertSql(T instance, ref Dictionary<string, object> parameters)
+    {
+        var tableName = GetTableName();
+        var columnNames = GetColumnNames(metadataProvider.UpdateableProperties);
+        var values = GetValuesForInsert(instance, ref parameters);
 
-            return doPaging
-                ? GetSelectSqlPaged(pageCriteria, ref parameters, queryCriteria)
-                : GetSelectSqlNonPaged(ref parameters, queryCriteria);
-        }
+        return $"INSERT INTO {tableName} ({columnNames}) VALUES ({values})";
+    }
 
-        public string GetInsertSql(T instance, ref Dictionary<string, object> parameters)
-        {
-            string tableName = GetTableName();
-            string columnNames = GetColumnNames(_metadataProvider.UpdateableProperties);
-            string values = GetValuesForInsert(instance, ref parameters);
+    public string GetUpdateSql(T instance, object original, ref Dictionary<string, object> parameters,
+                                Expression<Func<T, bool>>? predicate)
+    {
+        var nameValuePairs = GetValuesForUpdate(instance, original, ref parameters);
 
-            return $"INSERT INTO {tableName} ({columnNames}) VALUES ({values})";
-        }
+        if (string.IsNullOrEmpty(nameValuePairs))
+            return string.Empty;
 
-        public string GetUpdateSql(T instance, object original, ref Dictionary<string, object> parameters,
-                                    Expression<Func<T, bool>> predicate)
-        {
-            string nameValuePairs = GetValuesForUpdate(instance, original, ref parameters);
+        var tableName = GetTableName();
 
-            if (string.IsNullOrEmpty(nameValuePairs))
-                return string.Empty;
+        var (whereClause, whereParams) = BuildWhereClause(predicate, parameters.Count);
+        foreach (var kvp in whereParams)
+            parameters.Add(kvp.Key, kvp.Value);
 
-            string tableName = GetTableName();
+        var where = string.IsNullOrEmpty(whereClause) ? "" : $" WHERE {whereClause}";
 
-            var (whereClause, whereParams) = BuildWhereClause(predicate, parameters.Count);
-            foreach (var kvp in whereParams)
-                parameters.Add(kvp.Key, kvp.Value);
+        return $"UPDATE {tableName} SET {nameValuePairs}{where}";
+    }
 
-            string where = string.IsNullOrEmpty(whereClause) ? "" : $" WHERE {whereClause}";
+    public string GetDeleteSql(Expression<Func<T, bool>>? predicate, ref Dictionary<string, object> parameters)
+    {
+        var fromClause = GetFromClause();
 
-            return $"UPDATE {tableName} SET {nameValuePairs}{where}";
-        }
+        var (whereClause, whereParams) = BuildWhereClause(predicate, parameters.Count);
+        foreach (var kvp in whereParams)
+            parameters.Add(kvp.Key, kvp.Value);
 
-        public string GetDeleteSql(Expression<Func<T, bool>> predicate, ref Dictionary<string, object> parameters)
-        {
-            string fromClause = GetFromClause();
+        var where = string.IsNullOrEmpty(whereClause) ? "" : $" WHERE {whereClause}";
 
-            var (whereClause, whereParams) = BuildWhereClause(predicate, parameters.Count);
-            foreach (var kvp in whereParams)
-                parameters.Add(kvp.Key, kvp.Value);
+        return $"DELETE{fromClause}{where}";
+    }
 
-            string where = string.IsNullOrEmpty(whereClause) ? "" : $" WHERE {whereClause}";
+    private (string sql, Dictionary<string, object> parameters) BuildWhereClause(Expression<Func<T, bool>>? predicate, int startingIndex = 0)
+    {
+        return _whereClauseBuilder.Build(predicate, startingIndex);
+    }
 
-            return $"DELETE{fromClause}{where}";
-        }
+    private string GetSelectSqlNonPaged(ref Dictionary<string, object> parameters, QueryCriteria<T> queryCriteria)
+    {
+        var columnNames = GetColumnNames(metadataProvider.AllProperties);
+        var fromClause = GetFromClause();
 
-        private (string sql, Dictionary<string, object> parameters) BuildWhereClause(Expression<Func<T, bool>> predicate, int startingIndex = 0)
-        {
-            return _whereClauseBuilder.Build(predicate, startingIndex);
-        }
+        var (whereClause, whereParams) = BuildWhereClause(queryCriteria.Predicate);
+        foreach (var kvp in whereParams)
+            parameters.Add(kvp.Key, kvp.Value);
 
-        private string GetSelectSqlNonPaged(ref Dictionary<string, object> parameters, QueryCriteria<T> queryCriteria)
-        {
-            string columnNames = GetColumnNames(_metadataProvider.AllProperties);
-            string fromClause = GetFromClause();
+        var where = string.IsNullOrEmpty(whereClause) ? "" : $" WHERE {whereClause}";
+        var orderByClause = GetOrderByClause(queryCriteria.SortCriteria);
 
-            var (whereClause, whereParams) = BuildWhereClause(queryCriteria.Predicate);
-            foreach (var kvp in whereParams)
-                parameters.Add(kvp.Key, kvp.Value);
+        return $"SELECT {columnNames}{fromClause}{where}{orderByClause}";
+    }
 
-            string where = string.IsNullOrEmpty(whereClause) ? "" : $" WHERE {whereClause}";
-            string orderByClause = GetOrderByClause(queryCriteria.SortCriteria);
+    private string GetSelectSqlPaged(PageCriteria pageCriteria, ref Dictionary<string, object> parameters, QueryCriteria<T> queryCriteria)
+    {
+        if (queryCriteria.SortCriteria.Count < 1)
+            throw new ArgumentException("Paging requires at least one SortCriterion");
 
-            return $"SELECT {columnNames}{fromClause}{where}{orderByClause}";
-        }
+        var columnNames = GetColumnNames(metadataProvider.AllProperties);
+        var fromClause = GetFromClause();
 
-        private string GetSelectSqlPaged(PageCriteria pageCriteria, ref Dictionary<string, object> parameters, QueryCriteria<T> queryCriteria)
-        {
-            if (queryCriteria.SortCriteria.Count < 1)
-                throw new ArgumentException("Paging requires at least one SortCriterion");
+        var (whereClause, whereParams) = BuildWhereClause(queryCriteria.Predicate);
+        foreach (var kvp in whereParams)
+            parameters.Add(kvp.Key, kvp.Value);
 
-            string columnNames = GetColumnNames(_metadataProvider.AllProperties);
-            string fromClause = GetFromClause();
+        var where = string.IsNullOrEmpty(whereClause) ? "" : $" WHERE {whereClause}";
+        var orderByClause = GetOrderByClause(queryCriteria.SortCriteria);
 
-            var (whereClause, whereParams) = BuildWhereClause(queryCriteria.Predicate);
-            foreach (var kvp in whereParams)
-                parameters.Add(kvp.Key, kvp.Value);
+        var offset = (pageCriteria.Page - 1) * pageCriteria.PageSize;
+        var limit = pageCriteria.PageSize;
 
-            string where = string.IsNullOrEmpty(whereClause) ? "" : $" WHERE {whereClause}";
-            string orderByClause = GetOrderByClause(queryCriteria.SortCriteria);
+        return $"SELECT {columnNames}{fromClause}{where}{orderByClause} {dialect.GetPagingSql(limit, offset)}";
+    }
 
-            int offset = (pageCriteria.Page - 1) * pageCriteria.PageSize;
-            int limit = pageCriteria.PageSize;
+    private string GetFromClause()
+    {
+        return $" FROM {GetTableName()}";
+    }
 
-            return $"SELECT {columnNames}{fromClause}{where}{orderByClause} {_dialect.GetPagingSql(limit, offset)}";
-        }
+    private string GetTableName()
+    {
+        return dialect.QuoteIdentifier(metadataProvider.TableName);
+    }
 
-        private string GetFromClause()
-        {
-            return $" FROM {GetTableName()}";
-        }
+    private string GetOrderByClause(IEnumerable<SortCriterion>? sortCriteriaList)
+    {
+        var stringBuilder = new StringBuilder();
 
-        private string GetTableName()
-        {
-            return _dialect.QuoteIdentifier(_metadataProvider.TableName);
-        }
+        if (sortCriteriaList != null)
+            foreach (var sortCriteria in sortCriteriaList)
+            {
+                if (stringBuilder.Length > 0)
+                    stringBuilder.Append(", ");
 
-        private string GetOrderByClause(IEnumerable<SortCriterion> sortCriteriaList)
-        {
-            var stringBuilder = new StringBuilder();
+                var propertyMap = metadataProvider.GetPropertyMapByPropertyName(sortCriteria.PropertyName);
 
-            if (sortCriteriaList != null)
-                foreach (SortCriterion sortCriteria in sortCriteriaList)
-                {
-                    if (stringBuilder.Length > 0)
-                        stringBuilder.Append(", ");
+                if (propertyMap == null)
+                    throw new ApplicationException($"The type '{metadataProvider.Type}' does not contain property metadata for the property '{sortCriteria.PropertyName}'");
 
-                    PropertyMap propertyMap = _metadataProvider.GetPropertyMapByPropertyName(sortCriteria.PropertyName);
+                stringBuilder.Append(dialect.QuoteIdentifier(propertyMap.ColumnName));
 
-                    if (propertyMap == null)
-                        throw new ApplicationException($"The type '{_metadataProvider.Type}' does not contain property metadata for the property '{sortCriteria.PropertyName}'");
+                if (sortCriteria.Direction == SortDirection.Descending)
+                    stringBuilder.Append(" DESC");
+            }
 
-                    stringBuilder.Append(_dialect.QuoteIdentifier(propertyMap.ColumnName));
+        if (stringBuilder.Length > 0)
+            stringBuilder.Insert(0, " ORDER BY ");
 
-                    if (sortCriteria.Direction == SortDirection.Descending)
-                        stringBuilder.Append(" DESC");
-                }
+        return stringBuilder.ToString();
+    }
 
-            if (stringBuilder.Length > 0)
-                stringBuilder.Insert(0, " ORDER BY ");
+    private string GetValuesForInsert(object instance, ref Dictionary<string, object> parameters)
+    {
+        var stringBuilder = new StringBuilder();
 
-            return stringBuilder.ToString();
-        }
+        foreach (var propertyMap in metadataProvider.UpdateableProperties)
+            stringBuilder.AppendFormat("@{0},", AddParameter(parameters, propertyMap, instance));
 
-        private string GetValuesForInsert(object instance, ref Dictionary<string, object> parameters)
-        {
-            var stringBuilder = new StringBuilder();
+        return stringBuilder.ToString().RemoveFromEnd(",");
+    }
 
-            foreach (PropertyMap propertyMap in _metadataProvider.UpdateableProperties)
-                stringBuilder.AppendFormat("@{0},", AddParameter(parameters, propertyMap, instance));
+    private string GetValuesForUpdate(object instance, object original, ref Dictionary<string, object> parameters)
+    {
+        var stringBuilder = new StringBuilder();
 
-            return stringBuilder.ToString().RemoveFromEnd(",");
-        }
+        var propertyMapList = FindDifferences(instance, original);
 
-        private string GetValuesForUpdate(object instance, object original, ref Dictionary<string, object> parameters)
-        {
-            var stringBuilder = new StringBuilder();
+        foreach (var propertyMap in propertyMapList)
+            stringBuilder.AppendFormat("{0}=@{1},", dialect.QuoteIdentifier(propertyMap.ColumnName),
+                AddParameter(parameters, propertyMap, instance));
 
-            IEnumerable<PropertyMap> propertyMapList = FindDifferences(instance, original);
+        return stringBuilder.ToString().RemoveFromEnd(",");
+    }
 
-            foreach (PropertyMap propertyMap in propertyMapList)
-                stringBuilder.AppendFormat("{0}=@{1},", _dialect.QuoteIdentifier(propertyMap.ColumnName),
-                    AddParameter(parameters, propertyMap, instance));
+    private IEnumerable<PropertyMap> FindDifferences(object o1, object o2)
+    {
+        if (o1.GetType() != o2.GetType())
+            throw new ApplicationException("Objects are of different types");
 
-            return stringBuilder.ToString().RemoveFromEnd(",");
-        }
+        return metadataProvider.UpdateableProperties.Where(
+            propertyMap => Differ(propertyMap.GetPropertyValue(o1), propertyMap.GetPropertyValue(o2))).ToList();
+    }
 
-        private IEnumerable<PropertyMap> FindDifferences(object o1, object o2)
-        {
-            if (o1.GetType() != o2.GetType())
-                throw new ApplicationException("Objects are of different types");
+    private bool Differ(object? v1, object? v2)
+    {
+        if (v1 == null && v2 == null) return false;
+        if (v1 == null || v2 == null) return true;
+        return !v1.Equals(v2);
+    }
 
-            return _metadataProvider.UpdateableProperties.Where(
-                propertyMap => Differ(propertyMap.GetPropertyValue(o1), propertyMap.GetPropertyValue(o2))).ToList();
-        }
+    private string AddParameter(Dictionary<string, object> parameters, PropertyMap propertyMap, object instance)
+    {
+        var paramValue = propertyMap.GetPropertyValue(instance);
 
-        private bool Differ(object v1, object v2)
-        {
-            if (v1 == null && v2 == null) return false;
-            if (v1 == null || v2 == null) return true;
-            return !v1.Equals(v2);
-        }
+        if (paramValue is DateTime dt && dt == DateTime.MinValue)
+            paramValue = DBNull.Value;
 
-        private string AddParameter(Dictionary<string, object> parameters, PropertyMap propertyMap, object instance)
-        {
-            object paramValue = propertyMap.GetPropertyValue(instance);
+        var paramName = $"P{parameters.Count + 1}";
+        parameters.Add(paramName, paramValue);
+        return paramName;
+    }
 
-            if (paramValue is DateTime dt && dt == DateTime.MinValue)
-                paramValue = DBNull.Value;
-
-            string paramName = $"P{parameters.Count + 1}";
-            parameters.Add(paramName, paramValue);
-            return paramName;
-        }
-
-        private string GetColumnNames(IEnumerable<PropertyMap> propertyMaps)
-        {
-            return string.Join(",", propertyMaps.Select(x => _dialect.QuoteIdentifier(x.ColumnName)));
-        }
+    private string GetColumnNames(IEnumerable<PropertyMap> propertyMaps)
+    {
+        return string.Join(",", propertyMaps.Select(x => dialect.QuoteIdentifier(x.ColumnName)));
     }
 }

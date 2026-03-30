@@ -1,14 +1,11 @@
-using System;
+namespace Reform.Attributes;
 
-namespace Reform.Attributes
+public class PropertyMetadata : Attribute
 {
-    public class PropertyMetadata : Attribute
-    {
-        public string ColumnName { get; set; }
-        public string DisplayName { get; set; }
-        public bool IsPrimaryKey { get; set; }
-        public bool IsIdentity { get; set; }
-        public bool IsReadOnly { get; set; }
-        public bool IsRequired { get; set; }
-    }
+    public string? ColumnName { get; init; }
+    public string? DisplayName { get; init; }
+    public bool IsPrimaryKey { get; init; }
+    public bool IsIdentity { get; init; }
+    public bool IsReadOnly { get; init; }
+    public bool IsRequired { get; init; }
 }

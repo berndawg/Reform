@@ -2,32 +2,31 @@ using System.Data;
 using Microsoft.Data.Sqlite;
 using Reform.Interfaces;
 
-namespace Reform.Dialects
+namespace Reform.Dialects;
+
+public class SqliteDialect : IDialect
 {
-    public class SqliteDialect : IDialect
+    public IDbConnection CreateConnection(string connectionString)
     {
-        public IDbConnection CreateConnection(string connectionString)
-        {
-            return new SqliteConnection(connectionString);
-        }
-
-        public IDbCommand CreateCommand(string commandText, IDbConnection connection)
-        {
-            return new SqliteCommand(commandText, (SqliteConnection)connection);
-        }
-
-        public string IdentitySql => "SELECT last_insert_rowid()";
-
-        public string GetPagingSql(int limit, int offset)
-        {
-            return $"LIMIT {limit} OFFSET {offset}";
-        }
-
-        public string QuoteIdentifier(string name)
-        {
-            return $"[{name}]";
-        }
-
-        public string ParameterPrefix => "@";
+        return new SqliteConnection(connectionString);
     }
+
+    public IDbCommand CreateCommand(string commandText, IDbConnection connection)
+    {
+        return new SqliteCommand(commandText, (SqliteConnection)connection);
+    }
+
+    public string IdentitySql => "SELECT last_insert_rowid()";
+
+    public string GetPagingSql(int limit, int offset)
+    {
+        return $"LIMIT {limit} OFFSET {offset}";
+    }
+
+    public string QuoteIdentifier(string name)
+    {
+        return $"[{name}]";
+    }
+
+    public string ParameterPrefix => "@";
 }
