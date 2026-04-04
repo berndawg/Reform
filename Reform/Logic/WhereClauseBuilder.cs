@@ -98,21 +98,21 @@ namespace Reform.Logic
                 {
                     case "Contains":
                         VisitMemberForColumn(node.Object);
-                        var containsValue = EscapeLikeValue(GetValue(node.Arguments[0])?.ToString());
+                        var containsValue = _dialect.EscapeLikeValue(GetValue(node.Arguments[0])?.ToString());
                         var containsParam = AddParameter($"%{containsValue}%");
                         _sql.Append($" LIKE @{containsParam}");
                         return node;
 
                     case "StartsWith":
                         VisitMemberForColumn(node.Object);
-                        var startsValue = EscapeLikeValue(GetValue(node.Arguments[0])?.ToString());
+                        var startsValue = _dialect.EscapeLikeValue(GetValue(node.Arguments[0])?.ToString());
                         var startsParam = AddParameter($"{startsValue}%");
                         _sql.Append($" LIKE @{startsParam}");
                         return node;
 
                     case "EndsWith":
                         VisitMemberForColumn(node.Object);
-                        var endsValue = EscapeLikeValue(GetValue(node.Arguments[0])?.ToString());
+                        var endsValue = _dialect.EscapeLikeValue(GetValue(node.Arguments[0])?.ToString());
                         var endsParam = AddParameter($"%{endsValue}");
                         _sql.Append($" LIKE @{endsParam}");
                         return node;
@@ -217,10 +217,5 @@ namespace Reform.Logic
             return name;
         }
 
-        private string EscapeLikeValue(string value)
-        {
-            if (value == null) return null;
-            return value.Replace("[", "[[]").Replace("%", "[%]").Replace("_", "[_]");
-        }
     }
 }

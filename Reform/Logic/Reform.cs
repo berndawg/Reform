@@ -199,18 +199,18 @@ namespace Reform.Logic
 
         private void InsertInternal(IDbConnection connection, IDbTransaction transaction, T item)
         {
-            OnBeforeInsert(connection, item);
+            OnBeforeInsert(connection, transaction, item);
             OnValidate(connection, item);
             OnInsert(connection, transaction, item);
-            OnAfterInsert(connection, item);
+            OnAfterInsert(connection, transaction, item);
         }
 
         private async Task InsertInternalAsync(IDbConnection connection, IDbTransaction transaction, T item)
         {
-            await OnBeforeInsertAsync(connection, item);
+            await OnBeforeInsertAsync(connection, transaction, item);
             OnValidate(connection, item);
             await OnInsertAsync(connection, transaction, item);
-            await OnAfterInsertAsync(connection, item);
+            await OnAfterInsertAsync(connection, transaction, item);
         }
 
         #endregion
@@ -318,18 +318,18 @@ namespace Reform.Logic
 
         private void UpdateInternal(IDbConnection connection, IDbTransaction transaction, T item)
         {
-            OnBeforeUpdate(connection, item);
+            OnBeforeUpdate(connection, transaction, item);
             OnValidate(connection, item);
             OnUpdate(connection, transaction, item);
-            OnAfterUpdate(connection, item);
+            OnAfterUpdate(connection, transaction, item);
         }
 
         private async Task UpdateInternalAsync(IDbConnection connection, IDbTransaction transaction, T item)
         {
-            await OnBeforeUpdateAsync(connection, item);
+            await OnBeforeUpdateAsync(connection, transaction, item);
             OnValidate(connection, item);
             await OnUpdateAsync(connection, transaction, item);
-            await OnAfterUpdateAsync(connection, item);
+            await OnAfterUpdateAsync(connection, transaction, item);
         }
 
         #endregion
@@ -437,16 +437,16 @@ namespace Reform.Logic
 
         private void DeleteInternal(IDbConnection connection, IDbTransaction transaction, T item)
         {
-            OnBeforeDelete(connection, item);
+            OnBeforeDelete(connection, transaction, item);
             OnDelete(connection, transaction, item);
-            OnAfterDelete(connection, item);
+            OnAfterDelete(connection, transaction, item);
         }
 
         private async Task DeleteInternalAsync(IDbConnection connection, IDbTransaction transaction, T item)
         {
-            await OnBeforeDeleteAsync(connection, item);
+            await OnBeforeDeleteAsync(connection, transaction, item);
             await OnDeleteAsync(connection, transaction, item);
-            await OnAfterDeleteAsync(connection, item);
+            await OnAfterDeleteAsync(connection, transaction, item);
         }
 
         #endregion
@@ -747,19 +747,19 @@ namespace Reform.Logic
             return _dataAccess.DeleteAsync(connection, transaction, item);
         }
 
-        protected virtual void OnBeforeInsert(IDbConnection connection, T item) { }
-        protected virtual void OnBeforeUpdate(IDbConnection connection, T item) { }
-        protected virtual void OnAfterInsert(IDbConnection connection, T item) { }
-        protected virtual void OnAfterUpdate(IDbConnection connection, T item) { }
-        protected virtual void OnBeforeDelete(IDbConnection connection, T item) { }
-        protected virtual void OnAfterDelete(IDbConnection connection, T item) { }
+        protected virtual void OnBeforeInsert(IDbConnection connection, IDbTransaction transaction, T item) { }
+        protected virtual void OnBeforeUpdate(IDbConnection connection, IDbTransaction transaction, T item) { }
+        protected virtual void OnAfterInsert(IDbConnection connection, IDbTransaction transaction, T item) { }
+        protected virtual void OnAfterUpdate(IDbConnection connection, IDbTransaction transaction, T item) { }
+        protected virtual void OnBeforeDelete(IDbConnection connection, IDbTransaction transaction, T item) { }
+        protected virtual void OnAfterDelete(IDbConnection connection, IDbTransaction transaction, T item) { }
 
-        protected virtual Task OnBeforeInsertAsync(IDbConnection connection, T item) { OnBeforeInsert(connection, item); return Task.CompletedTask; }
-        protected virtual Task OnBeforeUpdateAsync(IDbConnection connection, T item) { OnBeforeUpdate(connection, item); return Task.CompletedTask; }
-        protected virtual Task OnAfterInsertAsync(IDbConnection connection, T item) { OnAfterInsert(connection, item); return Task.CompletedTask; }
-        protected virtual Task OnAfterUpdateAsync(IDbConnection connection, T item) { OnAfterUpdate(connection, item); return Task.CompletedTask; }
-        protected virtual Task OnBeforeDeleteAsync(IDbConnection connection, T item) { OnBeforeDelete(connection, item); return Task.CompletedTask; }
-        protected virtual Task OnAfterDeleteAsync(IDbConnection connection, T item) { OnAfterDelete(connection, item); return Task.CompletedTask; }
+        protected virtual Task OnBeforeInsertAsync(IDbConnection connection, IDbTransaction transaction, T item) { OnBeforeInsert(connection, transaction, item); return Task.CompletedTask; }
+        protected virtual Task OnBeforeUpdateAsync(IDbConnection connection, IDbTransaction transaction, T item) { OnBeforeUpdate(connection, transaction, item); return Task.CompletedTask; }
+        protected virtual Task OnAfterInsertAsync(IDbConnection connection, IDbTransaction transaction, T item) { OnAfterInsert(connection, transaction, item); return Task.CompletedTask; }
+        protected virtual Task OnAfterUpdateAsync(IDbConnection connection, IDbTransaction transaction, T item) { OnAfterUpdate(connection, transaction, item); return Task.CompletedTask; }
+        protected virtual Task OnBeforeDeleteAsync(IDbConnection connection, IDbTransaction transaction, T item) { OnBeforeDelete(connection, transaction, item); return Task.CompletedTask; }
+        protected virtual Task OnAfterDeleteAsync(IDbConnection connection, IDbTransaction transaction, T item) { OnAfterDelete(connection, transaction, item); return Task.CompletedTask; }
 
         #endregion
     }

@@ -65,7 +65,7 @@ namespace Reform.Logic
             return $"INSERT INTO {tableName} ({columnNames}) VALUES ({values})";
         }
 
-        public string GetUpdateSql(T instance, object original, ref Dictionary<string, object> parameters,
+        public string GetUpdateSql(T instance, T original, ref Dictionary<string, object> parameters,
                                     Expression<Func<T, bool>> predicate)
         {
             string nameValuePairs = GetValuesForUpdate(instance, original, ref parameters);
@@ -190,7 +190,7 @@ namespace Reform.Logic
             return stringBuilder.ToString();
         }
 
-        private string GetValuesForUpdate(object instance, object original, ref Dictionary<string, object> parameters)
+        private string GetValuesForUpdate(T instance, T original, ref Dictionary<string, object> parameters)
         {
             var stringBuilder = new StringBuilder();
             bool first = true;
@@ -209,13 +209,10 @@ namespace Reform.Logic
             return stringBuilder.ToString();
         }
 
-        private IEnumerable<PropertyMap> FindDifferences(object o1, object o2)
+        private IEnumerable<PropertyMap> FindDifferences(T instance, T original)
         {
-            if (o1.GetType() != o2.GetType())
-                throw new ApplicationException("Objects are of different types");
-
             return _metadataProvider.UpdateableProperties.Where(
-                propertyMap => Differ(propertyMap.GetPropertyValue(o1), propertyMap.GetPropertyValue(o2))).ToList();
+                propertyMap => Differ(propertyMap.GetPropertyValue(instance), propertyMap.GetPropertyValue(original))).ToList();
         }
 
         private bool Differ(object v1, object v2)
@@ -228,9 +225,6 @@ namespace Reform.Logic
         private string AddParameter(Dictionary<string, object> parameters, PropertyMap propertyMap, object instance)
         {
             object paramValue = propertyMap.GetPropertyValue(instance);
-
-            if (paramValue is DateTime dt && dt == DateTime.MinValue)
-                paramValue = DBNull.Value;
 
             string paramName = $"P{parameters.Count + 1}";
             parameters.Add(paramName, paramValue);

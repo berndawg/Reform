@@ -12,12 +12,6 @@ namespace Reform.Objects
             Direction = sortDirection;
         }
 
-        public SortCriterion(string propertyName)
-        {
-            PropertyName = propertyName;
-            Direction = SortDirection.Ascending;
-        }
-
         [DataMember]
         public string PropertyName { get; set; }
 
@@ -27,11 +21,6 @@ namespace Reform.Objects
         public static SortCriterion Ascending(string propertyName)
         {
             return new SortCriterion(propertyName, SortDirection.Ascending);
-        }
-
-        public static SortCriterion Descending(string propertyName)
-        {
-            return new SortCriterion(propertyName, SortDirection.Descending);
         }
     }
 }

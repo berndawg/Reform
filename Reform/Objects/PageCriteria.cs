@@ -11,12 +11,6 @@ namespace Reform.Objects
             PageSize = 0;
         }
 
-        public PageCriteria(int page)
-        {
-            Page = page;
-            PageSize = 0;
-        }
-
         public PageCriteria(int page, int pageSize)
         {
             Page = page;
@@ -29,9 +23,5 @@ namespace Reform.Objects
         [DataMember]
         public int PageSize { get; set; }
 
-        public static PageCriteria All()
-        {
-            return new PageCriteria(0);
-        }
     }
 }

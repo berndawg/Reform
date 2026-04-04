@@ -69,7 +69,10 @@ namespace Reform.Logic
 
         public object GetPrimaryKeyValue(T instance)
         {
-            return _primaryKeyPropertyMap == null ? 0 : _primaryKeyPropertyMap.GetPropertyValue(instance);
+            if (_primaryKeyPropertyMap == null)
+                throw new InvalidOperationException($"Type '{Type.Name}' does not have a property marked 'IsPrimaryKey'");
+
+            return _primaryKeyPropertyMap.GetPropertyValue(instance);
         }
 
         public void SetPrimaryKeyValue(T instance, object id)

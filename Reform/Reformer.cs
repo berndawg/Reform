@@ -7,41 +7,41 @@ using Reform.Logic;
 
 namespace Reform
 {
-    public class ReformBuilder
+    public class Reformer
     {
         private Type _dialectType = typeof(SqliteDialect);
         private string _connectionString;
         private readonly Dictionary<Type, Type> _registrations = new();
         private readonly Dictionary<Type, object> _instances = new();
 
-        public ReformBuilder UseSqlite(string connectionString = null)
+        public Reformer UseSqlite(string connectionString = null)
         {
             _dialectType = typeof(SqliteDialect);
             _connectionString = connectionString;
             return this;
         }
 
-        public ReformBuilder UseSqlServer(string connectionString = null)
+        public Reformer UseSqlServer(string connectionString = null)
         {
             _dialectType = typeof(SqlServerDialect);
             _connectionString = connectionString;
             return this;
         }
 
-        public ReformBuilder UseMySql(string connectionString = null)
+        public Reformer UseMySql(string connectionString = null)
         {
             _dialectType = typeof(MySqlDialect);
             _connectionString = connectionString;
             return this;
         }
 
-        public ReformBuilder Register(Type serviceType, Type implementationType)
+        public Reformer Register(Type serviceType, Type implementationType)
         {
             _registrations[serviceType] = implementationType;
             return this;
         }
 
-        public ReformBuilder Register<TService>(TService instance)
+        public Reformer Register<TService>(TService instance)
         {
             _instances[typeof(TService)] = instance;
             return this;

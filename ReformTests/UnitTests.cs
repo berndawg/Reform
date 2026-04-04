@@ -5,8 +5,6 @@ using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using Reform;
 using Reform.Interfaces;
-using Reform.Logic;
-using Reform.Objects;
 using ReformTests.Objects;
 using Xunit;
 
@@ -15,7 +13,7 @@ namespace ReformTests
     public class UnitTests : IDisposable
     {
         private readonly SqliteConnection _sharedConnection;
-        private readonly ReformFactory _reform;
+        private readonly ReformFactory _reformer;
 
         public UnitTests()
         {
@@ -24,7 +22,7 @@ namespace ReformTests
 
             CreateTables(_sharedConnection);
 
-            _reform = new ReformBuilder()
+            _reformer = new Reformer()
                 .UseSqlite("Data Source=InMemoryTest;Mode=Memory;Cache=Shared")
                 .Register(typeof(IDebugLogger), typeof(TestDebugLogger))
                 .Build();
@@ -32,7 +30,7 @@ namespace ReformTests
 
         public void Dispose()
         {
-            _reform.Dispose();
+            _reformer.Dispose();
             _sharedConnection.Close();
             _sharedConnection.Dispose();
         }
@@ -64,7 +62,7 @@ namespace ReformTests
         [Fact]
         public void Insert_And_Count()
         {
-            IReform<Country> countryLogic = _reform.For<Country>();
+            IReform<Country> countryLogic = _reformer.For<Country>();
 
             countryLogic.Insert(new Country { CountryName = "Morocco" });
             countryLogic.Insert(new Country { CountryName = "United States" });
@@ -76,8 +74,8 @@ namespace ReformTests
         [Fact]
         public void Count_With_Predicate()
         {
-            IReform<Country> countryLogic = _reform.For<Country>();
-            IReform<Airport> airportLogic = _reform.For<Airport>();
+            IReform<Country> countryLogic = _reformer.For<Country>();
+            IReform<Airport> airportLogic = _reformer.For<Airport>();
 
             countryLogic.Insert(new Country { CountryName = "USA" });
             countryLogic.Insert(new Country { CountryName = "Peru" });
@@ -97,7 +95,7 @@ namespace ReformTests
         [Fact]
         public void Exists_Returns_True_When_Found()
         {
-            IReform<Airport> airportLogic = _reform.For<Airport>();
+            IReform<Airport> airportLogic = _reformer.For<Airport>();
 
             airportLogic.Insert(new Airport { AirportCode = "RAK", AirportName = "Marrakesh", CountryId = 1 });
 
@@ -107,7 +105,7 @@ namespace ReformTests
         [Fact]
         public void Exists_Returns_False_When_Not_Found()
         {
-            IReform<Airport> airportLogic = _reform.For<Airport>();
+            IReform<Airport> airportLogic = _reformer.For<Airport>();
 
             Assert.False(airportLogic.Exists(x => x.AirportCode == "NONEXISTENT"));
         }
@@ -115,7 +113,7 @@ namespace ReformTests
         [Fact]
         public void Select_All()
         {
-            IReform<Country> countryLogic = _reform.For<Country>();
+            IReform<Country> countryLogic = _reformer.For<Country>();
 
             countryLogic.Insert(new Country { CountryName = "France" });
             countryLogic.Insert(new Country { CountryName = "Germany" });
@@ -127,7 +125,7 @@ namespace ReformTests
         [Fact]
         public void Select_With_Lambda()
         {
-            IReform<Airport> airportLogic = _reform.For<Airport>();
+            IReform<Airport> airportLogic = _reformer.For<Airport>();
 
             airportLogic.Insert(new Airport { AirportCode = "CDG", AirportName = "Charles de Gaulle", CountryId = 10 });
             airportLogic.Insert(new Airport { AirportCode = "ORY", AirportName = "Orly", CountryId = 10 });
@@ -140,7 +138,7 @@ namespace ReformTests
         [Fact]
         public void SelectSingle()
         {
-            IReform<Airport> airportLogic = _reform.For<Airport>();
+            IReform<Airport> airportLogic = _reformer.For<Airport>();
 
             airportLogic.Insert(new Airport { AirportCode = "NRT", AirportName = "Narita", CountryId = 30 });
 
@@ -151,7 +149,7 @@ namespace ReformTests
         [Fact]
         public void SelectSingleOrDefault_Returns_Null_When_Not_Found()
         {
-            IReform<Airport> airportLogic = _reform.For<Airport>();
+            IReform<Airport> airportLogic = _reformer.For<Airport>();
 
             Airport airport = airportLogic.SelectSingleOrDefault(x => x.AirportCode == "ZZZZZ");
             Assert.Null(airport);
@@ -160,7 +158,7 @@ namespace ReformTests
         [Fact]
         public void Update_Modifies_Record()
         {
-            IReform<Country> countryLogic = _reform.For<Country>();
+            IReform<Country> countryLogic = _reformer.For<Country>();
 
             var country = new Country { CountryName = "Moroco" };
             countryLogic.Insert(country);
@@ -175,7 +173,7 @@ namespace ReformTests
         [Fact]
         public void Delete_Removes_Record()
         {
-            IReform<Airport> airportLogic = _reform.For<Airport>();
+            IReform<Airport> airportLogic = _reformer.For<Airport>();
 
             var airport = new Airport { AirportCode = "DEL", AirportName = "Delhi", CountryId = 40 };
             airportLogic.Insert(airport);
@@ -190,7 +188,7 @@ namespace ReformTests
         [Fact]
         public void Delete_List_Removes_Multiple()
         {
-            IReform<Airport> airportLogic = _reform.For<Airport>();
+            IReform<Airport> airportLogic = _reformer.For<Airport>();
 
             var a1 = new Airport { AirportCode = "XX1", AirportName = "Test1", CountryId = 50 };
             var a2 = new Airport { AirportCode = "XX2", AirportName = "Test2", CountryId = 50 };
@@ -209,7 +207,7 @@ namespace ReformTests
         [Fact]
         public void Insert_List_Inserts_Multiple()
         {
-            IReform<Country> countryLogic = _reform.For<Country>();
+            IReform<Country> countryLogic = _reformer.For<Country>();
 
             int before = countryLogic.Count();
 
@@ -226,7 +224,7 @@ namespace ReformTests
         [Fact]
         public void Select_With_And_Predicate()
         {
-            IReform<Airport> airportLogic = _reform.For<Airport>();
+            IReform<Airport> airportLogic = _reformer.For<Airport>();
 
             airportLogic.Insert(new Airport { AirportCode = "JFK", AirportName = "John F Kennedy", CountryId = 100 });
             airportLogic.Insert(new Airport { AirportCode = "EWR", AirportName = "Newark", CountryId = 100 });
@@ -239,7 +237,7 @@ namespace ReformTests
         [Fact]
         public void Select_With_Or_Predicate()
         {
-            IReform<Airport> airportLogic = _reform.For<Airport>();
+            IReform<Airport> airportLogic = _reformer.For<Airport>();
 
             airportLogic.Insert(new Airport { AirportCode = "SYD", AirportName = "Sydney", CountryId = 200 });
             airportLogic.Insert(new Airport { AirportCode = "MEL", AirportName = "Melbourne", CountryId = 200 });
@@ -252,7 +250,7 @@ namespace ReformTests
         [Fact]
         public void Validation_Throws_On_Missing_Required_Field()
         {
-            IReform<Airport> airportLogic = _reform.For<Airport>();
+            IReform<Airport> airportLogic = _reformer.For<Airport>();
 
             var airport = new Airport { AirportCode = "", AirportName = "Test", CountryId = 1 };
 
@@ -266,7 +264,7 @@ namespace ReformTests
         [Fact]
         public async Task Insert_And_Count_Async()
         {
-            IReform<Country> countryLogic = _reform.For<Country>();
+            IReform<Country> countryLogic = _reformer.For<Country>();
 
             await countryLogic.InsertAsync(new Country { CountryName = "Argentina" });
             await countryLogic.InsertAsync(new Country { CountryName = "Chile" });
@@ -277,7 +275,7 @@ namespace ReformTests
         [Fact]
         public async Task Select_Async()
         {
-            IReform<Airport> airportLogic = _reform.For<Airport>();
+            IReform<Airport> airportLogic = _reformer.For<Airport>();
 
             await airportLogic.InsertAsync(new Airport { AirportCode = "GRU", AirportName = "Guarulhos", CountryId = 300 });
             await airportLogic.InsertAsync(new Airport { AirportCode = "GIG", AirportName = "Galeao", CountryId = 300 });
@@ -289,7 +287,7 @@ namespace ReformTests
         [Fact]
         public async Task Update_Async()
         {
-            IReform<Country> countryLogic = _reform.For<Country>();
+            IReform<Country> countryLogic = _reformer.For<Country>();
 
             var country = new Country { CountryName = "Barzil" };
             await countryLogic.InsertAsync(country);
@@ -304,7 +302,7 @@ namespace ReformTests
         [Fact]
         public async Task Delete_Async()
         {
-            IReform<Airport> airportLogic = _reform.For<Airport>();
+            IReform<Airport> airportLogic = _reformer.For<Airport>();
 
             var airport = new Airport { AirportCode = "EZE", AirportName = "Ezeiza", CountryId = 400 };
             await airportLogic.InsertAsync(airport);
@@ -319,7 +317,7 @@ namespace ReformTests
         [Fact]
         public async Task SelectSingleOrDefault_Async_Returns_Null()
         {
-            IReform<Airport> airportLogic = _reform.For<Airport>();
+            IReform<Airport> airportLogic = _reformer.For<Airport>();
 
             Airport airport = await airportLogic.SelectSingleOrDefaultAsync(x => x.AirportCode == "NOPE");
             Assert.Null(airport);
@@ -328,7 +326,7 @@ namespace ReformTests
         [Fact]
         public async Task Exists_Async_Returns_False_When_Not_Found()
         {
-            IReform<Airport> airportLogic = _reform.For<Airport>();
+            IReform<Airport> airportLogic = _reformer.For<Airport>();
 
             Assert.False(await airportLogic.ExistsAsync(x => x.AirportCode == "NONEXISTENT"));
         }
@@ -340,7 +338,7 @@ namespace ReformTests
         [Fact]
         public void Merge_Inserts_New_Items()
         {
-            IReform<Country> countryLogic = _reform.For<Country>();
+            IReform<Country> countryLogic = _reformer.For<Country>();
 
             countryLogic.Merge(new List<Country>
             {
@@ -356,7 +354,7 @@ namespace ReformTests
         [Fact]
         public void Merge_Updates_Existing_Items()
         {
-            IReform<Country> countryLogic = _reform.For<Country>();
+            IReform<Country> countryLogic = _reformer.For<Country>();
 
             countryLogic.Insert(new Country { CountryName = "France" });
             Country france = countryLogic.SelectSingle(x => x.CountryName == "France");
@@ -372,7 +370,7 @@ namespace ReformTests
         [Fact]
         public void Merge_Deletes_Missing_Items()
         {
-            IReform<Country> countryLogic = _reform.For<Country>();
+            IReform<Country> countryLogic = _reformer.For<Country>();
 
             countryLogic.Insert(new List<Country>
             {
@@ -394,7 +392,7 @@ namespace ReformTests
         [Fact]
         public void Merge_Full_Reconciliation()
         {
-            IReform<Country> countryLogic = _reform.For<Country>();
+            IReform<Country> countryLogic = _reformer.For<Country>();
 
             countryLogic.Insert(new List<Country>
             {
@@ -427,7 +425,7 @@ namespace ReformTests
         [Fact]
         public void Merge_Empty_List_Deletes_All()
         {
-            IReform<Country> countryLogic = _reform.For<Country>();
+            IReform<Country> countryLogic = _reformer.For<Country>();
 
             countryLogic.Insert(new List<Country>
             {
@@ -445,7 +443,7 @@ namespace ReformTests
         [Fact]
         public void Merge_With_No_Changes()
         {
-            IReform<Country> countryLogic = _reform.For<Country>();
+            IReform<Country> countryLogic = _reformer.For<Country>();
 
             countryLogic.Insert(new List<Country>
             {
@@ -465,7 +463,7 @@ namespace ReformTests
         [Fact]
         public async Task Merge_Async()
         {
-            IReform<Country> countryLogic = _reform.For<Country>();
+            IReform<Country> countryLogic = _reformer.For<Country>();
 
             await countryLogic.InsertAsync(new List<Country>
             {
@@ -497,7 +495,7 @@ namespace ReformTests
         [Fact]
         public void Transaction_Insert_Update_Delete()
         {
-            IReform<Country> countryLogic = _reform.For<Country>();
+            IReform<Country> countryLogic = _reformer.For<Country>();
 
             using (var connection = countryLogic.GetConnection())
             {
@@ -540,7 +538,9 @@ namespace ReformTests
         [Fact]
         public void Transaction_Rollback()
         {
-            IReform<Country> countryLogic = _reform.For<Country>();
+            IReform<Country> countryLogic = _reformer.For<Country>();
+
+            int countBefore = countryLogic.Count();
 
             using (var connection = countryLogic.GetConnection())
             {
@@ -552,13 +552,13 @@ namespace ReformTests
                 }
             }
 
-            Assert.Equal(0, countryLogic.Count());
+            Assert.Equal(countBefore, countryLogic.Count());
         }
 
         [Fact]
         public async Task Transaction_Async_Insert_Update_Delete()
         {
-            IReform<Country> countryLogic = _reform.For<Country>();
+            IReform<Country> countryLogic = _reformer.For<Country>();
 
             using (var connection = countryLogic.GetConnection())
             {

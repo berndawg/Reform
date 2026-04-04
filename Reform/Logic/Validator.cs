@@ -23,7 +23,7 @@ namespace Reform.Logic
                 throw new ApplicationException(string.Join(Environment.NewLine, errors));
         }
 
-        public IEnumerable<string> GetErrors(T item)
+        private IEnumerable<string> GetErrors(T item)
         {
             foreach (PropertyMap propertyMap in _metadataProvider.RequiredProperties)
             {

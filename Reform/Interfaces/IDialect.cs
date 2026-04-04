@@ -10,5 +10,6 @@ namespace Reform.Interfaces
         string GetPagingSql(int limit, int offset);
         string QuoteIdentifier(string name);
         string ParameterPrefix { get; }
+        string EscapeLikeValue(string value);
     }
 }
