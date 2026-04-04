@@ -19,14 +19,17 @@ namespace Reform.Interfaces
         void Insert(T item);
         void Insert(List<T> items);
         void Insert(IDbConnection connection, T item);
+        void Insert(IDbConnection connection, IDbTransaction transaction, T item);
 
         void Update(T item);
         void Update(List<T> list);
         void Update(IDbConnection connection, T item);
+        void Update(IDbConnection connection, IDbTransaction transaction, T item);
 
         void Delete(T item);
         void Delete(List<T> list);
         void Delete(IDbConnection connection, T item);
+        void Delete(IDbConnection connection, IDbTransaction transaction, T item);
 
         void Merge(List<T> list);
 
@@ -44,12 +47,15 @@ namespace Reform.Interfaces
 
         Task InsertAsync(T item);
         Task InsertAsync(List<T> items);
+        Task InsertAsync(IDbConnection connection, IDbTransaction transaction, T item);
 
         Task UpdateAsync(T item);
         Task UpdateAsync(List<T> list);
+        Task UpdateAsync(IDbConnection connection, IDbTransaction transaction, T item);
 
         Task DeleteAsync(T item);
         Task DeleteAsync(List<T> list);
+        Task DeleteAsync(IDbConnection connection, IDbTransaction transaction, T item);
 
         Task MergeAsync(List<T> list);
 

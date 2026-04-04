@@ -145,6 +145,11 @@ namespace Reform.Logic
             InsertInternal(connection, null, item);
         }
 
+        public void Insert(IDbConnection connection, IDbTransaction transaction, T item)
+        {
+            InsertInternal(connection, transaction, item);
+        }
+
         public async Task InsertAsync(T item)
         {
             await using (DbConnection connection = await _connectionProvider.GetConnectionAsync())
@@ -185,6 +190,11 @@ namespace Reform.Logic
                     }
                 }
             }
+        }
+
+        public async Task InsertAsync(IDbConnection connection, IDbTransaction transaction, T item)
+        {
+            await InsertInternalAsync(connection, transaction, item);
         }
 
         private void InsertInternal(IDbConnection connection, IDbTransaction transaction, T item)
@@ -254,6 +264,11 @@ namespace Reform.Logic
             UpdateInternal(connection, null, item);
         }
 
+        public void Update(IDbConnection connection, IDbTransaction transaction, T item)
+        {
+            UpdateInternal(connection, transaction, item);
+        }
+
         public async Task UpdateAsync(T item)
         {
             await using (DbConnection connection = await _connectionProvider.GetConnectionAsync())
@@ -294,6 +309,11 @@ namespace Reform.Logic
                     }
                 }
             }
+        }
+
+        public async Task UpdateAsync(IDbConnection connection, IDbTransaction transaction, T item)
+        {
+            await UpdateInternalAsync(connection, transaction, item);
         }
 
         private void UpdateInternal(IDbConnection connection, IDbTransaction transaction, T item)
@@ -363,6 +383,11 @@ namespace Reform.Logic
             DeleteInternal(connection, null, item);
         }
 
+        public void Delete(IDbConnection connection, IDbTransaction transaction, T item)
+        {
+            DeleteInternal(connection, transaction, item);
+        }
+
         public async Task DeleteAsync(T item)
         {
             await using (DbConnection connection = await _connectionProvider.GetConnectionAsync())
@@ -403,6 +428,11 @@ namespace Reform.Logic
                     }
                 }
             }
+        }
+
+        public async Task DeleteAsync(IDbConnection connection, IDbTransaction transaction, T item)
+        {
+            await DeleteInternalAsync(connection, transaction, item);
         }
 
         private void DeleteInternal(IDbConnection connection, IDbTransaction transaction, T item)

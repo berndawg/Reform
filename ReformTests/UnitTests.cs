@@ -491,6 +491,114 @@ namespace ReformTests
         }
 
         #endregion
+
+        #region Transaction Tests
+
+        [Fact]
+        public void Transaction_Insert_Update_Delete()
+        {
+            IReform<Country> countryLogic = _reform.For<Country>();
+
+            using (var connection = countryLogic.GetConnection())
+            {
+                using (var transaction = connection.BeginTransaction())
+                {
+                    countryLogic.Insert(connection, transaction, new Country { CountryName = "Norway" });
+                    countryLogic.Insert(connection, transaction, new Country { CountryName = "Sweden" });
+                    transaction.Commit();
+                }
+            }
+
+            Assert.Equal(2, countryLogic.Count());
+
+            var norway = countryLogic.SelectSingle(x => x.CountryName == "Norway");
+
+            using (var connection = countryLogic.GetConnection())
+            {
+                using (var transaction = connection.BeginTransaction())
+                {
+                    norway.CountryName = "Kingdom of Norway";
+                    countryLogic.Update(connection, transaction, norway);
+                    transaction.Commit();
+                }
+            }
+
+            Assert.True(countryLogic.Exists(x => x.CountryName == "Kingdom of Norway"));
+
+            using (var connection = countryLogic.GetConnection())
+            {
+                using (var transaction = connection.BeginTransaction())
+                {
+                    countryLogic.Delete(connection, transaction, norway);
+                    transaction.Commit();
+                }
+            }
+
+            Assert.Equal(1, countryLogic.Count());
+        }
+
+        [Fact]
+        public void Transaction_Rollback()
+        {
+            IReform<Country> countryLogic = _reform.For<Country>();
+
+            using (var connection = countryLogic.GetConnection())
+            {
+                using (var transaction = connection.BeginTransaction())
+                {
+                    countryLogic.Insert(connection, transaction, new Country { CountryName = "Japan" });
+                    countryLogic.Insert(connection, transaction, new Country { CountryName = "China" });
+                    transaction.Rollback();
+                }
+            }
+
+            Assert.Equal(0, countryLogic.Count());
+        }
+
+        [Fact]
+        public async Task Transaction_Async_Insert_Update_Delete()
+        {
+            IReform<Country> countryLogic = _reform.For<Country>();
+
+            using (var connection = countryLogic.GetConnection())
+            {
+                using (var transaction = connection.BeginTransaction())
+                {
+                    await countryLogic.InsertAsync(connection, transaction, new Country { CountryName = "Brazil" });
+                    await countryLogic.InsertAsync(connection, transaction, new Country { CountryName = "Argentina" });
+                    transaction.Commit();
+                }
+            }
+
+            Assert.Equal(2, await countryLogic.CountAsync());
+
+            var brazil = countryLogic.SelectSingle(x => x.CountryName == "Brazil");
+
+            using (var connection = countryLogic.GetConnection())
+            {
+                using (var transaction = connection.BeginTransaction())
+                {
+                    brazil.CountryName = "Federative Republic of Brazil";
+                    await countryLogic.UpdateAsync(connection, transaction, brazil);
+                    transaction.Commit();
+                }
+            }
+
+            Assert.True(await countryLogic.ExistsAsync(x => x.CountryName == "Federative Republic of Brazil"));
+
+            using (var connection = countryLogic.GetConnection())
+            {
+                using (var transaction = connection.BeginTransaction())
+                {
+                    await countryLogic.DeleteAsync(connection, transaction, brazil);
+                    transaction.Commit();
+                }
+            }
+
+            Assert.Equal(1, await countryLogic.CountAsync());
+        }
+
+        #endregion
     }
 
     internal class TestDebugLogger : IDebugLogger
