@@ -334,6 +334,163 @@ namespace ReformTests
         }
 
         #endregion
+
+        #region Merge Tests
+
+        [Fact]
+        public void Merge_Inserts_New_Items()
+        {
+            IReform<Country> countryLogic = _reform.For<Country>();
+
+            countryLogic.Merge(new List<Country>
+            {
+                new Country { CountryName = "France" },
+                new Country { CountryName = "Germany" }
+            });
+
+            Assert.Equal(2, countryLogic.Count());
+            Assert.True(countryLogic.Exists(x => x.CountryName == "France"));
+            Assert.True(countryLogic.Exists(x => x.CountryName == "Germany"));
+        }
+
+        [Fact]
+        public void Merge_Updates_Existing_Items()
+        {
+            IReform<Country> countryLogic = _reform.For<Country>();
+
+            countryLogic.Insert(new Country { CountryName = "France" });
+            Country france = countryLogic.SelectSingle(x => x.CountryName == "France");
+
+            france.CountryName = "French Republic";
+            countryLogic.Merge(new List<Country> { france });
+
+            Assert.Equal(1, countryLogic.Count());
+            Country updated = countryLogic.SelectSingle(x => x.CountryId == france.CountryId);
+            Assert.Equal("French Republic", updated.CountryName);
+        }
+
+        [Fact]
+        public void Merge_Deletes_Missing_Items()
+        {
+            IReform<Country> countryLogic = _reform.For<Country>();
+
+            countryLogic.Insert(new List<Country>
+            {
+                new Country { CountryName = "France" },
+                new Country { CountryName = "Germany" },
+                new Country { CountryName = "Spain" }
+            });
+
+            Country france = countryLogic.SelectSingle(x => x.CountryName == "France");
+
+            countryLogic.Merge(new List<Country> { france });
+
+            Assert.Equal(1, countryLogic.Count());
+            Assert.True(countryLogic.Exists(x => x.CountryName == "France"));
+            Assert.False(countryLogic.Exists(x => x.CountryName == "Germany"));
+            Assert.False(countryLogic.Exists(x => x.CountryName == "Spain"));
+        }
+
+        [Fact]
+        public void Merge_Full_Reconciliation()
+        {
+            IReform<Country> countryLogic = _reform.For<Country>();
+
+            countryLogic.Insert(new List<Country>
+            {
+                new Country { CountryName = "France" },
+                new Country { CountryName = "Germany" },
+                new Country { CountryName = "Spain" }
+            });
+
+            Country france = countryLogic.SelectSingle(x => x.CountryName == "France");
+            france.CountryName = "French Republic";
+
+            Country germany = countryLogic.SelectSingle(x => x.CountryName == "Germany");
+
+            countryLogic.Merge(new List<Country>
+            {
+                france,                                    // update
+                germany,                                   // unchanged
+                new Country { CountryName = "Italy" }      // insert
+            });
+            // Spain should be deleted
+
+            Assert.Equal(3, countryLogic.Count());
+            Assert.True(countryLogic.Exists(x => x.CountryName == "French Republic"));
+            Assert.True(countryLogic.Exists(x => x.CountryName == "Germany"));
+            Assert.True(countryLogic.Exists(x => x.CountryName == "Italy"));
+            Assert.False(countryLogic.Exists(x => x.CountryName == "Spain"));
+            Assert.False(countryLogic.Exists(x => x.CountryName == "France"));
+        }
+
+        [Fact]
+        public void Merge_Empty_List_Deletes_All()
+        {
+            IReform<Country> countryLogic = _reform.For<Country>();
+
+            countryLogic.Insert(new List<Country>
+            {
+                new Country { CountryName = "France" },
+                new Country { CountryName = "Germany" }
+            });
+
+            Assert.Equal(2, countryLogic.Count());
+
+            countryLogic.Merge(new List<Country>());
+
+            Assert.Equal(0, countryLogic.Count());
+        }
+
+        [Fact]
+        public void Merge_With_No_Changes()
+        {
+            IReform<Country> countryLogic = _reform.For<Country>();
+
+            countryLogic.Insert(new List<Country>
+            {
+                new Country { CountryName = "France" },
+                new Country { CountryName = "Germany" }
+            });
+
+            var all = countryLogic.Select().ToList();
+
+            countryLogic.Merge(all);
+
+            Assert.Equal(2, countryLogic.Count());
+            Assert.True(countryLogic.Exists(x => x.CountryName == "France"));
+            Assert.True(countryLogic.Exists(x => x.CountryName == "Germany"));
+        }
+
+        [Fact]
+        public async Task Merge_Async()
+        {
+            IReform<Country> countryLogic = _reform.For<Country>();
+
+            await countryLogic.InsertAsync(new List<Country>
+            {
+                new Country { CountryName = "France" },
+                new Country { CountryName = "Germany" },
+                new Country { CountryName = "Spain" }
+            });
+
+            Country france = await countryLogic.SelectSingleAsync(x => x.CountryName == "France");
+            france.CountryName = "French Republic";
+
+            await countryLogic.MergeAsync(new List<Country>
+            {
+                france,
+                new Country { CountryName = "Italy" }
+            });
+
+            Assert.Equal(2, await countryLogic.CountAsync());
+            Assert.True(await countryLogic.ExistsAsync(x => x.CountryName == "French Republic"));
+            Assert.True(await countryLogic.ExistsAsync(x => x.CountryName == "Italy"));
+            Assert.False(await countryLogic.ExistsAsync(x => x.CountryName == "Germany"));
+            Assert.False(await countryLogic.ExistsAsync(x => x.CountryName == "Spain"));
+        }
+
+        #endregion
     }
 
     internal class TestDebugLogger : IDebugLogger

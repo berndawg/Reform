@@ -15,17 +15,20 @@ namespace Reform.Logic
         private readonly IConnectionProvider<T> _connectionProvider;
         private readonly IDataAccess<T> _dataAccess;
         private readonly IValidator<T> _validator;
+        private readonly IMetadataProvider<T> _metadataProvider;
 
-        public Reform(IConnectionProvider<T> connectionProvider, IDataAccess<T> dataAccess, IValidator<T> validator)
+        public Reform(IConnectionProvider<T> connectionProvider, IDataAccess<T> dataAccess, IValidator<T> validator, IMetadataProvider<T> metadataProvider)
         {
             _connectionProvider = connectionProvider;
             _dataAccess = dataAccess;
             _validator = validator;
+            _metadataProvider = metadataProvider;
         }
 
-        protected Reform(IValidator<T> validator)
+        protected Reform(IValidator<T> validator, IMetadataProvider<T> metadataProvider = null)
         {
             _validator = validator;
+            _metadataProvider = metadataProvider;
         }
 
         #region Connection
@@ -321,9 +324,7 @@ namespace Reform.Logic
                 {
                     try
                     {
-                        OnBeforeDelete(connection, item);
-                        OnDelete(connection, transaction, item);
-                        OnAfterDelete(connection, item);
+                        DeleteInternal(connection, transaction, item);
                         transaction.Commit();
                     }
                     catch
@@ -344,11 +345,7 @@ namespace Reform.Logic
                     try
                     {
                         foreach (T item in list)
-                        {
-                            OnBeforeDelete(connection, item);
-                            OnDelete(connection, transaction, item);
-                            OnAfterDelete(connection, item);
-                        }
+                            DeleteInternal(connection, transaction, item);
 
                         transaction.Commit();
                     }
@@ -363,9 +360,7 @@ namespace Reform.Logic
 
         public void Delete(IDbConnection connection, T item)
         {
-            OnBeforeDelete(connection, item);
-            OnDelete(connection, null, item);
-            OnAfterDelete(connection, item);
+            DeleteInternal(connection, null, item);
         }
 
         public async Task DeleteAsync(T item)
@@ -376,9 +371,7 @@ namespace Reform.Logic
                 {
                     try
                     {
-                        await OnBeforeDeleteAsync(connection, item);
-                        await OnDeleteAsync(connection, transaction, item);
-                        await OnAfterDeleteAsync(connection, item);
+                        await DeleteInternalAsync(connection, transaction, item);
                         await transaction.CommitAsync();
                     }
                     catch
@@ -399,11 +392,7 @@ namespace Reform.Logic
                     try
                     {
                         foreach (T item in list)
-                        {
-                            await OnBeforeDeleteAsync(connection, item);
-                            await OnDeleteAsync(connection, transaction, item);
-                            await OnAfterDeleteAsync(connection, item);
-                        }
+                            await DeleteInternalAsync(connection, transaction, item);
 
                         await transaction.CommitAsync();
                     }
@@ -414,6 +403,150 @@ namespace Reform.Logic
                     }
                 }
             }
+        }
+
+        private void DeleteInternal(IDbConnection connection, IDbTransaction transaction, T item)
+        {
+            OnBeforeDelete(connection, item);
+            OnDelete(connection, transaction, item);
+            OnAfterDelete(connection, item);
+        }
+
+        private async Task DeleteInternalAsync(IDbConnection connection, IDbTransaction transaction, T item)
+        {
+            await OnBeforeDeleteAsync(connection, item);
+            await OnDeleteAsync(connection, transaction, item);
+            await OnAfterDeleteAsync(connection, item);
+        }
+
+        #endregion
+
+        #region Merge
+
+        public virtual void Merge(List<T> list)
+        {
+            using (IDbConnection connection = GetConnection())
+            {
+                using (IDbTransaction transaction = connection.BeginTransaction())
+                {
+                    try
+                    {
+                        MergeInternal(connection, transaction, list);
+                        transaction.Commit();
+                    }
+                    catch
+                    {
+                        transaction.Rollback();
+                        throw;
+                    }
+                }
+            }
+        }
+
+        public virtual async Task MergeAsync(List<T> list)
+        {
+            await using (DbConnection connection = await _connectionProvider.GetConnectionAsync())
+            {
+                await using (DbTransaction transaction = await connection.BeginTransactionAsync())
+                {
+                    try
+                    {
+                        await MergeInternalAsync(connection, transaction, list);
+                        await transaction.CommitAsync();
+                    }
+                    catch
+                    {
+                        await transaction.RollbackAsync();
+                        throw;
+                    }
+                }
+            }
+        }
+
+        private void MergeInternal(IDbConnection connection, IDbTransaction transaction, List<T> list)
+        {
+            if (_metadataProvider == null)
+                throw new InvalidOperationException("Merge requires IMetadataProvider<T>. Pass it to the Reform<T> constructor.");
+
+            var existing = OnSelect(connection, transaction, new QueryCriteria<T>()).ToList();
+            var existingByPk = new Dictionary<object, T>();
+            foreach (T record in existing)
+                existingByPk[_metadataProvider.GetPrimaryKeyValue(record)] = record;
+
+            var accountedPks = new HashSet<object>();
+
+            foreach (T item in list)
+            {
+                if (IsDefaultPrimaryKey(item))
+                {
+                    InsertInternal(connection, transaction, item);
+                }
+                else
+                {
+                    object pk = _metadataProvider.GetPrimaryKeyValue(item);
+                    accountedPks.Add(pk);
+
+                    if (existingByPk.ContainsKey(pk))
+                        UpdateInternal(connection, transaction, item);
+                    else
+                        InsertInternal(connection, transaction, item);
+                }
+            }
+
+            foreach (var kvp in existingByPk)
+            {
+                if (!accountedPks.Contains(kvp.Key))
+                    DeleteInternal(connection, transaction, kvp.Value);
+            }
+        }
+
+        private async Task MergeInternalAsync(IDbConnection connection, IDbTransaction transaction, List<T> list)
+        {
+            if (_metadataProvider == null)
+                throw new InvalidOperationException("Merge requires IMetadataProvider<T>. Pass it to the Reform<T> constructor.");
+
+            var existing = (await OnSelectAsync(connection, transaction, new QueryCriteria<T>())).ToList();
+            var existingByPk = new Dictionary<object, T>();
+            foreach (T record in existing)
+                existingByPk[_metadataProvider.GetPrimaryKeyValue(record)] = record;
+
+            var accountedPks = new HashSet<object>();
+
+            foreach (T item in list)
+            {
+                if (IsDefaultPrimaryKey(item))
+                {
+                    await InsertInternalAsync(connection, transaction, item);
+                }
+                else
+                {
+                    object pk = _metadataProvider.GetPrimaryKeyValue(item);
+                    accountedPks.Add(pk);
+
+                    if (existingByPk.ContainsKey(pk))
+                        await UpdateInternalAsync(connection, transaction, item);
+                    else
+                        await InsertInternalAsync(connection, transaction, item);
+                }
+            }
+
+            foreach (var kvp in existingByPk)
+            {
+                if (!accountedPks.Contains(kvp.Key))
+                    await DeleteInternalAsync(connection, transaction, kvp.Value);
+            }
+        }
+
+        private bool IsDefaultPrimaryKey(T item)
+        {
+            object pkValue = _metadataProvider.GetPrimaryKeyValue(item);
+            if (pkValue == null) return true;
+
+            Type pkType = _metadataProvider.PrimaryKeyPropertyType;
+            if (pkType.IsValueType)
+                return pkValue.Equals(Activator.CreateInstance(pkType));
+
+            return false;
         }
 
         #endregion
@@ -542,6 +675,16 @@ namespace Reform.Logic
         protected virtual Task<IEnumerable<T>> OnSelectAsync(IDbConnection connection, QueryCriteria<T> queryCriteria)
         {
             return _dataAccess.SelectAsync(connection, null, queryCriteria);
+        }
+
+        protected virtual IEnumerable<T> OnSelect(IDbConnection connection, IDbTransaction transaction, QueryCriteria<T> queryCriteria)
+        {
+            return _dataAccess.Select(connection, transaction, queryCriteria);
+        }
+
+        protected virtual Task<IEnumerable<T>> OnSelectAsync(IDbConnection connection, IDbTransaction transaction, QueryCriteria<T> queryCriteria)
+        {
+            return _dataAccess.SelectAsync(connection, transaction, queryCriteria);
         }
 
         protected virtual void OnInsert(IDbConnection connection, IDbTransaction transaction, T item)

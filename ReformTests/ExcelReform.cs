@@ -16,7 +16,7 @@ namespace ReformTests
         private readonly IMetadataProvider<T> _metadataProvider;
 
         public ExcelReform(string filePath, IMetadataProvider<T> metadataProvider, IValidator<T> validator)
-            : base(validator)
+            : base(validator, metadataProvider)
         {
             _filePath = filePath;
             _metadataProvider = metadataProvider;
