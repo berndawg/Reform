@@ -1,22 +1,22 @@
 using System.Data;
-using Microsoft.Data.Sqlite;
+using Npgsql;
 using Reform.Interfaces;
 
 namespace Reform.Dialects
 {
-    public class SqliteDialect : IDialect
+    public class PostgreSqlDialect : IDialect
     {
         public IDbConnection CreateConnection(string connectionString)
         {
-            return new SqliteConnection(connectionString);
+            return new NpgsqlConnection(connectionString);
         }
 
         public IDbCommand CreateCommand(string commandText, IDbConnection connection)
         {
-            return new SqliteCommand(commandText, (SqliteConnection)connection);
+            return new NpgsqlCommand(commandText, (NpgsqlConnection)connection);
         }
 
-        public string IdentitySql => "SELECT last_insert_rowid()";
+        public string IdentitySql => "SELECT lastval()";
 
         public string GetPagingSql(int limit, int offset)
         {
@@ -25,7 +25,7 @@ namespace Reform.Dialects
 
         public string QuoteIdentifier(string name)
         {
-            return $"[{name}]";
+            return $"\"{name}\"";
         }
 
         public string ParameterPrefix => "@";
@@ -38,6 +38,6 @@ namespace Reform.Dialects
 
         public string LikeEscapeClause => @" ESCAPE '\'";
 
-        public string BooleanTrueLiteral => "1";
+        public string BooleanTrueLiteral => "TRUE";
     }
 }

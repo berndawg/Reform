@@ -11,5 +11,7 @@ namespace Reform.Interfaces
         string QuoteIdentifier(string name);
         string ParameterPrefix { get; }
         string EscapeLikeValue(string value);
+        string LikeEscapeClause { get; }
+        string BooleanTrueLiteral { get; }
     }
 }

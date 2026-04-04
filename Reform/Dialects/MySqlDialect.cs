@@ -35,5 +35,9 @@ namespace Reform.Dialects
             if (value == null) return null;
             return value.Replace(@"\", @"\\").Replace("%", @"\%").Replace("_", @"\_");
         }
+
+        public string LikeEscapeClause => @" ESCAPE '\'";
+
+        public string BooleanTrueLiteral => "1";
     }
 }

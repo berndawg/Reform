@@ -100,21 +100,21 @@ namespace Reform.Logic
                         VisitMemberForColumn(node.Object);
                         var containsValue = _dialect.EscapeLikeValue(GetValue(node.Arguments[0])?.ToString());
                         var containsParam = AddParameter($"%{containsValue}%");
-                        _sql.Append($" LIKE @{containsParam}");
+                        _sql.Append($" LIKE @{containsParam}{_dialect.LikeEscapeClause}");
                         return node;
 
                     case "StartsWith":
                         VisitMemberForColumn(node.Object);
                         var startsValue = _dialect.EscapeLikeValue(GetValue(node.Arguments[0])?.ToString());
                         var startsParam = AddParameter($"{startsValue}%");
-                        _sql.Append($" LIKE @{startsParam}");
+                        _sql.Append($" LIKE @{startsParam}{_dialect.LikeEscapeClause}");
                         return node;
 
                     case "EndsWith":
                         VisitMemberForColumn(node.Object);
                         var endsValue = _dialect.EscapeLikeValue(GetValue(node.Arguments[0])?.ToString());
                         var endsParam = AddParameter($"%{endsValue}");
-                        _sql.Append($" LIKE @{endsParam}");
+                        _sql.Append($" LIKE @{endsParam}{_dialect.LikeEscapeClause}");
                         return node;
                 }
             }
@@ -128,7 +128,7 @@ namespace Reform.Logic
             if (node.Type == typeof(bool) && node.Expression is ParameterExpression)
             {
                 VisitMemberForColumn(node);
-                _sql.Append(" = 1");
+                _sql.Append($" = {_dialect.BooleanTrueLiteral}");
                 return node;
             }
 

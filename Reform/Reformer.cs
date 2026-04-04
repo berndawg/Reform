@@ -35,6 +35,13 @@ namespace Reform
             return this;
         }
 
+        public Reformer UsePostgreSql(string connectionString = null)
+        {
+            _dialectType = typeof(PostgreSqlDialect);
+            _connectionString = connectionString;
+            return this;
+        }
+
         public Reformer Register(Type serviceType, Type implementationType)
         {
             _registrations[serviceType] = implementationType;
