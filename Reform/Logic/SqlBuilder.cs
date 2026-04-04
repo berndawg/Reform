@@ -5,7 +5,6 @@ using System.Linq.Expressions;
 using System.Runtime.CompilerServices;
 using System.Text;
 using Reform.Enum;
-using Reform.Extensions;
 using Reform.Interfaces;
 using Reform.Objects;
 
@@ -179,24 +178,35 @@ namespace Reform.Logic
         private string GetValuesForInsert(object instance, ref Dictionary<string, object> parameters)
         {
             var stringBuilder = new StringBuilder();
+            bool first = true;
 
             foreach (PropertyMap propertyMap in _metadataProvider.UpdateableProperties)
-                stringBuilder.AppendFormat("@{0},", AddParameter(parameters, propertyMap, instance));
+            {
+                if (!first) stringBuilder.Append(',');
+                first = false;
+                stringBuilder.Append('@').Append(AddParameter(parameters, propertyMap, instance));
+            }
 
-            return stringBuilder.ToString().RemoveFromEnd(",");
+            return stringBuilder.ToString();
         }
 
         private string GetValuesForUpdate(object instance, object original, ref Dictionary<string, object> parameters)
         {
             var stringBuilder = new StringBuilder();
+            bool first = true;
 
             IEnumerable<PropertyMap> propertyMapList = FindDifferences(instance, original);
 
             foreach (PropertyMap propertyMap in propertyMapList)
-                stringBuilder.AppendFormat("{0}=@{1},", _dialect.QuoteIdentifier(propertyMap.ColumnName),
-                    AddParameter(parameters, propertyMap, instance));
+            {
+                if (!first) stringBuilder.Append(',');
+                first = false;
+                stringBuilder.Append(_dialect.QuoteIdentifier(propertyMap.ColumnName))
+                    .Append("=@")
+                    .Append(AddParameter(parameters, propertyMap, instance));
+            }
 
-            return stringBuilder.ToString().RemoveFromEnd(",");
+            return stringBuilder.ToString();
         }
 
         private IEnumerable<PropertyMap> FindDifferences(object o1, object o2)

@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Linq.Expressions;
-using System.Reflection;
 using System.Threading.Tasks;
 using Reform.Interfaces;
 using Reform.Objects;
@@ -15,12 +14,25 @@ namespace Reform.Logic
         private readonly IMetadataProvider<T> _metadataProvider;
         private readonly ICommandBuilder<T> _commandBuilder;
         private readonly IDebugLogger _debugLogger;
+        private readonly Func<T> _factory;
+        private readonly ParameterExpression _pkParam;
+        private readonly MemberExpression _pkProperty;
 
         public DataAccess(IMetadataProvider<T> metadataProvider, ICommandBuilder<T> commandBuilder, IDebugLogger debugLogger)
         {
             _metadataProvider = metadataProvider;
             _commandBuilder = commandBuilder;
             _debugLogger = debugLogger;
+            _factory = Expression.Lambda<Func<T>>(Expression.New(typeof(T))).Compile();
+            _pkParam = Expression.Parameter(typeof(T), "x");
+            _pkProperty = Expression.Property(_pkParam, _metadataProvider.PrimaryKeyPropertyName);
+        }
+
+        private Expression<Func<T, bool>> BuildPkPredicate(object pkValue)
+        {
+            var constant = Expression.Constant(pkValue, _pkProperty.Type);
+            var equality = Expression.Equal(_pkProperty, constant);
+            return Expression.Lambda<Func<T, bool>>(equality, _pkParam);
         }
 
         #region Sync
@@ -66,13 +78,7 @@ namespace Reform.Logic
 
         public void Update(IDbConnection connection, IDbTransaction transaction, T instance)
         {
-            var pkValue = _metadataProvider.GetPrimaryKeyValue(instance);
-            var param = Expression.Parameter(typeof(T), "x");
-            var property = Expression.Property(param, _metadataProvider.PrimaryKeyPropertyName);
-            var constant = Expression.Constant(pkValue, property.Type);
-            var equality = Expression.Equal(property, constant);
-            var predicate = Expression.Lambda<Func<T, bool>>(equality, param);
-
+            var predicate = BuildPkPredicate(_metadataProvider.GetPrimaryKeyValue(instance));
             Update(connection, transaction, instance, predicate);
         }
 
@@ -93,13 +99,7 @@ namespace Reform.Logic
 
         public void Delete(IDbConnection connection, IDbTransaction transaction, T instance)
         {
-            var pkValue = _metadataProvider.GetPrimaryKeyValue(instance);
-            var param = Expression.Parameter(typeof(T), "x");
-            var property = Expression.Property(param, _metadataProvider.PrimaryKeyPropertyName);
-            var constant = Expression.Constant(pkValue, property.Type);
-            var equality = Expression.Equal(property, constant);
-            var predicate = Expression.Lambda<Func<T, bool>>(equality, param);
-
+            var predicate = BuildPkPredicate(_metadataProvider.GetPrimaryKeyValue(instance));
             Delete(connection, transaction, predicate);
         }
 
@@ -157,13 +157,7 @@ namespace Reform.Logic
 
         public async Task UpdateAsync(IDbConnection connection, IDbTransaction transaction, T instance)
         {
-            var pkValue = _metadataProvider.GetPrimaryKeyValue(instance);
-            var param = Expression.Parameter(typeof(T), "x");
-            var property = Expression.Property(param, _metadataProvider.PrimaryKeyPropertyName);
-            var constant = Expression.Constant(pkValue, property.Type);
-            var equality = Expression.Equal(property, constant);
-            var predicate = Expression.Lambda<Func<T, bool>>(equality, param);
-
+            var predicate = BuildPkPredicate(_metadataProvider.GetPrimaryKeyValue(instance));
             await UpdateAsync(connection, transaction, instance, predicate);
         }
 
@@ -184,13 +178,7 @@ namespace Reform.Logic
 
         public async Task DeleteAsync(IDbConnection connection, IDbTransaction transaction, T instance)
         {
-            var pkValue = _metadataProvider.GetPrimaryKeyValue(instance);
-            var param = Expression.Parameter(typeof(T), "x");
-            var property = Expression.Property(param, _metadataProvider.PrimaryKeyPropertyName);
-            var constant = Expression.Constant(pkValue, property.Type);
-            var equality = Expression.Equal(property, constant);
-            var predicate = Expression.Lambda<Func<T, bool>>(equality, param);
-
+            var predicate = BuildPkPredicate(_metadataProvider.GetPrimaryKeyValue(instance));
             await DeleteAsync(connection, transaction, predicate);
         }
 
@@ -237,14 +225,14 @@ namespace Reform.Logic
 
                 using (IDataReader dataReader = command.ExecuteReader())
                 {
-                    PropertyInfo[] propertyInfos = null;
+                    PropertyMap[] propertyMaps = null;
 
                     while (dataReader.Read())
                     {
-                        if (propertyInfos == null)
-                            propertyInfos = GetPropertyInfos(dataReader);
+                        if (propertyMaps == null)
+                            propertyMaps = GetPropertyMaps(dataReader);
 
-                        list.Add(GetInstance(dataReader, propertyInfos));
+                        list.Add(GetInstance(dataReader, propertyMaps));
                     }
                 }
 
@@ -282,14 +270,14 @@ namespace Reform.Logic
 
                 using (var dataReader = await command.ExecuteReaderAsync())
                 {
-                    PropertyInfo[] propertyInfos = null;
+                    PropertyMap[] propertyMaps = null;
 
                     while (await dataReader.ReadAsync())
                     {
-                        if (propertyInfos == null)
-                            propertyInfos = GetPropertyInfos(dataReader);
+                        if (propertyMaps == null)
+                            propertyMaps = GetPropertyMaps(dataReader);
 
-                        list.Add(GetInstance(dataReader, propertyInfos));
+                        list.Add(GetInstance(dataReader, propertyMaps));
                     }
                 }
 
@@ -301,27 +289,26 @@ namespace Reform.Logic
 
         #region Mapping
 
-        private PropertyInfo[] GetPropertyInfos(IDataRecord reader)
+        private PropertyMap[] GetPropertyMaps(IDataRecord reader)
         {
-            var array = new PropertyInfo[reader.FieldCount];
+            var array = new PropertyMap[reader.FieldCount];
 
             for (var i = 0; i < reader.FieldCount; i++)
             {
                 string columnName = reader.GetName(i);
-                var propertyMap = _metadataProvider.GetPropertyMapByColumnName(columnName);
-                array[i] = propertyMap?.PropertyInfo;
+                array[i] = _metadataProvider.GetPropertyMapByColumnName(columnName);
             }
 
             return array;
         }
 
-        private T GetInstance(IDataRecord reader, IReadOnlyList<PropertyInfo> propertyInfos)
+        private T GetInstance(IDataRecord reader, PropertyMap[] propertyMaps)
         {
-            T instance = (T)Activator.CreateInstance(_metadataProvider.Type);
+            T instance = _factory();
 
             for (var i = 0; i < reader.FieldCount; i++)
             {
-                if (propertyInfos[i] == null)
+                if (propertyMaps[i] == null)
                     continue;
 
                 if (reader.IsDBNull(i))
@@ -330,17 +317,17 @@ namespace Reform.Logic
                 try
                 {
                     object value = reader.GetValue(i);
-                    Type targetType = propertyInfos[i].PropertyType;
+                    Type targetType = propertyMaps[i].PropertyType;
                     Type underlyingType = Nullable.GetUnderlyingType(targetType) ?? targetType;
 
                     if (value.GetType() != underlyingType)
                         value = Convert.ChangeType(value, underlyingType);
 
-                    propertyInfos[i].SetValue(instance, value);
+                    propertyMaps[i].SetPropertyValue(instance, value);
                 }
                 catch (Exception e)
                 {
-                    throw new Exception($"Failed to set property '{propertyInfos[i].Name}'", e);
+                    throw new Exception($"Failed to set property '{propertyMaps[i].PropertyName}'", e);
                 }
             }
 

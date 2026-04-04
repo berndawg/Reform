@@ -555,20 +555,20 @@ namespace Reform.Logic
 
         public virtual T SelectSingle(Expression<Func<T, bool>> predicate)
         {
-            IEnumerable<T> list = Select(predicate).ToList();
+            var list = Select(predicate).ToList();
 
-            if (list.Count() == 1)
-                return list.First();
+            if (list.Count == 1)
+                return list[0];
 
-            throw new ApplicationException($"Expected to find 1 {typeof(T).Name} but found {list.Count()}");
+            throw new ApplicationException($"Expected to find 1 {typeof(T).Name} but found {list.Count}");
         }
 
         public virtual T SelectSingleOrDefault(Expression<Func<T, bool>> predicate)
         {
-            IEnumerable<T> list = Select(predicate).ToList();
+            var list = Select(predicate).ToList();
 
-            if (list.Count() > 1)
-                throw new ApplicationException($"Expected to find 1 or 0 {typeof(T).Name} but found {list.Count()}");
+            if (list.Count > 1)
+                throw new ApplicationException($"Expected to find 1 or 0 {typeof(T).Name} but found {list.Count}");
 
             return list.FirstOrDefault();
         }

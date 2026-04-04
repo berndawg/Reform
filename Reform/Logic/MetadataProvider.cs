@@ -48,8 +48,8 @@ namespace Reform.Logic
             List<PropertyMap> allProperties = GetProperties(Type).ToList();
 
             AllProperties = allProperties;
-            RequiredProperties = allProperties.Where(x => x.IsRequired);
-            UpdateableProperties = allProperties.Where(x => !x.IsReadOnly && !x.IsIdentity);
+            RequiredProperties = allProperties.Where(x => x.IsRequired).ToList();
+            UpdateableProperties = allProperties.Where(x => !x.IsReadOnly && !x.IsIdentity).ToList();
 
             _primaryKeyPropertyMap = allProperties.FirstOrDefault(x => x.IsPrimaryKey);
 
@@ -59,12 +59,12 @@ namespace Reform.Logic
 
         public PropertyMap GetPropertyMapByPropertyName(string propertyName)
         {
-            return _propertyMapLookupByPropertyName.ContainsKey(propertyName) ? _propertyMapLookupByPropertyName[propertyName] : null;
+            return _propertyMapLookupByPropertyName.TryGetValue(propertyName, out var map) ? map : null;
         }
 
         public PropertyMap GetPropertyMapByColumnName(string columnName)
         {
-            return _propertyMapLookupByColumnName.ContainsKey(columnName) ? _propertyMapLookupByColumnName[columnName] : null;
+            return _propertyMapLookupByColumnName.TryGetValue(columnName, out var map) ? map : null;
         }
 
         public object GetPrimaryKeyValue(T instance)

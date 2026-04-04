@@ -161,10 +161,26 @@ namespace Reform.Logic
             if (expression is ConstantExpression constant)
                 return constant.Value;
 
-            // Compile and evaluate the expression to get its value
-            var lambda = Expression.Lambda(expression);
-            var compiled = lambda.Compile();
-            return compiled.DynamicInvoke();
+            if (expression is UnaryExpression { NodeType: ExpressionType.Convert } unary)
+                return GetValue(unary.Operand);
+
+            if (expression is MemberExpression member)
+            {
+                var obj = member.Expression != null ? GetValue(member.Expression) : null;
+                return member.Member switch
+                {
+                    FieldInfo fi => fi.GetValue(obj),
+                    PropertyInfo pi => pi.GetValue(obj),
+                    _ => CompileAndInvoke(expression)
+                };
+            }
+
+            return CompileAndInvoke(expression);
+        }
+
+        private static object CompileAndInvoke(Expression expression)
+        {
+            return Expression.Lambda<Func<object>>(Expression.Convert(expression, typeof(object))).Compile().Invoke();
         }
 
         private bool IsNullConstant(Expression expression)
