@@ -20,7 +20,7 @@ namespace Reform.Logic
             IEnumerable<string> errors = GetErrors(item);
 
             if (errors.Any())
-                throw new ApplicationException(string.Join(Environment.NewLine, errors));
+                throw new ArgumentException(string.Join(Environment.NewLine, errors), nameof(item));
         }
 
         private IEnumerable<string> GetErrors(T item)

@@ -77,7 +77,7 @@ namespace ReformTests
                     }
                 }
 
-                throw new ApplicationException($"Expected to find 1 {typeof(T).Name} but found 0");
+                throw new InvalidOperationException($"Expected to find 1 {typeof(T).Name} but found 0.");
             }
         }
 
@@ -138,14 +138,14 @@ namespace ReformTests
         {
             var list = Select(predicate).ToList();
             if (list.Count == 1) return list[0];
-            throw new ApplicationException($"Expected to find 1 {typeof(T).Name} but found {list.Count}");
+            throw new InvalidOperationException($"Expected to find 1 {typeof(T).Name} but found {list.Count}.");
         }
 
         public override T SelectSingleOrDefault(Expression<Func<T, bool>> predicate)
         {
             var list = Select(predicate).ToList();
             if (list.Count > 1)
-                throw new ApplicationException($"Expected to find 1 or 0 {typeof(T).Name} but found {list.Count}");
+                throw new InvalidOperationException($"Expected to find 1 or 0 {typeof(T).Name} but found {list.Count}.");
             return list.FirstOrDefault();
         }
 
@@ -296,7 +296,7 @@ namespace ReformTests
                     return col;
             }
 
-            throw new ApplicationException($"Column '{columnName}' not found in worksheet '{SheetName}'");
+            throw new InvalidOperationException($"Column '{columnName}' not found in worksheet '{SheetName}'.");
         }
 
         private int GetMaxIdentityValue(IXLWorksheet worksheet, PropertyMap identityProp)

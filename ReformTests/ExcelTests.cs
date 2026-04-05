@@ -174,7 +174,7 @@ namespace ReformTests
         {
             var airport = new Airport { AirportCode = "", AirportName = "Test", CountryId = 1 };
 
-            Assert.Throws<ApplicationException>(() => _airportRepo.Insert(airport));
+            Assert.Throws<ArgumentException>(() => _airportRepo.Insert(airport));
         }
 
         [Fact]

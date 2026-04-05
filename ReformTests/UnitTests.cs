@@ -254,7 +254,7 @@ namespace ReformTests
 
             var airport = new Airport { AirportCode = "", AirportName = "Test", CountryId = 1 };
 
-            Assert.Throws<ApplicationException>(() => airportLogic.Insert(airport));
+            Assert.Throws<ArgumentException>(() => airportLogic.Insert(airport));
         }
 
         #endregion

@@ -88,7 +88,7 @@ namespace Reform.Logic
             var list = new List<T>(Select(connection, transaction, queryCriteria));
 
             if (list.Count != 1)
-                throw new ApplicationException($"Expected to find 1 {typeof(T).Name} but found {list.Count}");
+                throw new InvalidOperationException($"Expected to find 1 {typeof(T).Name} but found {list.Count}.");
 
             using (IDbCommand command = _commandBuilder.GetUpdateCommand(connection, instance, list[0], predicate))
             {
@@ -167,7 +167,7 @@ namespace Reform.Logic
             var list = new List<T>(await SelectAsync(connection, transaction, queryCriteria));
 
             if (list.Count != 1)
-                throw new ApplicationException($"Expected to find 1 {typeof(T).Name} but found {list.Count}");
+                throw new InvalidOperationException($"Expected to find 1 {typeof(T).Name} but found {list.Count}.");
 
             using (IDbCommand command = _commandBuilder.GetUpdateCommand(connection, instance, list[0], predicate))
             {

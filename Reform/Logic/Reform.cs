@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
@@ -25,10 +26,34 @@ namespace Reform.Logic
             _metadataProvider = metadataProvider;
         }
 
+        /// <summary>
+        /// Initializes a <see cref="Reform{T}"/> for derived types that supply their own persistence (for example a non-database store).
+        /// Database-oriented APIs throw <see cref="InvalidOperationException"/> unless those methods are overridden.
+        /// </summary>
         protected Reform(IValidator<T> validator, IMetadataProvider<T> metadataProvider = null)
         {
+            _connectionProvider = null!;
+            _dataAccess = null!;
             _validator = validator;
             _metadataProvider = metadataProvider;
+        }
+
+        [MemberNotNull(nameof(_connectionProvider))]
+        [MemberNotNull(nameof(_dataAccess))]
+        private void EnsureDataLayer()
+        {
+            if (_connectionProvider == null || _dataAccess == null)
+            {
+                throw new InvalidOperationException(
+                    $"Reform<{typeof(T).Name}> was constructed with the constructor intended for custom storage backends (validator only). " +
+                    "Use the constructor that accepts IConnectionProvider<T> and IDataAccess<T>, or override every method that performs database access.");
+            }
+        }
+
+        private async Task<DbConnection> GetOpenedConnectionAsync()
+        {
+            EnsureDataLayer();
+            return await _connectionProvider.GetConnectionAsync();
         }
 
         #region Connection
@@ -60,7 +85,7 @@ namespace Reform.Logic
 
         public virtual async Task<int> CountAsync()
         {
-            await using (DbConnection connection = await _connectionProvider.GetConnectionAsync())
+            await using (DbConnection connection = await GetOpenedConnectionAsync())
             {
                 return await OnCountAsync(connection, null);
             }
@@ -68,7 +93,7 @@ namespace Reform.Logic
 
         public virtual async Task<int> CountAsync(Expression<Func<T, bool>> predicate)
         {
-            await using (DbConnection connection = await _connectionProvider.GetConnectionAsync())
+            await using (DbConnection connection = await GetOpenedConnectionAsync())
             {
                 return await OnCountAsync(connection, predicate);
             }
@@ -88,7 +113,7 @@ namespace Reform.Logic
 
         public virtual async Task<bool> ExistsAsync(Expression<Func<T, bool>> predicate)
         {
-            await using (DbConnection connection = await _connectionProvider.GetConnectionAsync())
+            await using (DbConnection connection = await GetOpenedConnectionAsync())
             {
                 return await OnExistsAsync(connection, predicate);
             }
@@ -152,7 +177,7 @@ namespace Reform.Logic
 
         public async Task InsertAsync(T item)
         {
-            await using (DbConnection connection = await _connectionProvider.GetConnectionAsync())
+            await using (DbConnection connection = await GetOpenedConnectionAsync())
             {
                 await using (DbTransaction transaction = await connection.BeginTransactionAsync())
                 {
@@ -172,7 +197,7 @@ namespace Reform.Logic
 
         public async Task InsertAsync(List<T> items)
         {
-            await using (DbConnection connection = await _connectionProvider.GetConnectionAsync())
+            await using (DbConnection connection = await GetOpenedConnectionAsync())
             {
                 await using (DbTransaction transaction = await connection.BeginTransactionAsync())
                 {
@@ -271,7 +296,7 @@ namespace Reform.Logic
 
         public async Task UpdateAsync(T item)
         {
-            await using (DbConnection connection = await _connectionProvider.GetConnectionAsync())
+            await using (DbConnection connection = await GetOpenedConnectionAsync())
             {
                 await using (DbTransaction transaction = await connection.BeginTransactionAsync())
                 {
@@ -291,7 +316,7 @@ namespace Reform.Logic
 
         public async Task UpdateAsync(List<T> list)
         {
-            await using (DbConnection connection = await _connectionProvider.GetConnectionAsync())
+            await using (DbConnection connection = await GetOpenedConnectionAsync())
             {
                 await using (DbTransaction transaction = await connection.BeginTransactionAsync())
                 {
@@ -390,7 +415,7 @@ namespace Reform.Logic
 
         public async Task DeleteAsync(T item)
         {
-            await using (DbConnection connection = await _connectionProvider.GetConnectionAsync())
+            await using (DbConnection connection = await GetOpenedConnectionAsync())
             {
                 await using (DbTransaction transaction = await connection.BeginTransactionAsync())
                 {
@@ -410,7 +435,7 @@ namespace Reform.Logic
 
         public async Task DeleteAsync(List<T> list)
         {
-            await using (DbConnection connection = await _connectionProvider.GetConnectionAsync())
+            await using (DbConnection connection = await GetOpenedConnectionAsync())
             {
                 await using (DbTransaction transaction = await connection.BeginTransactionAsync())
                 {
@@ -475,7 +500,7 @@ namespace Reform.Logic
 
         public virtual async Task MergeAsync(List<T> list)
         {
-            await using (DbConnection connection = await _connectionProvider.GetConnectionAsync())
+            await using (DbConnection connection = await GetOpenedConnectionAsync())
             {
                 await using (DbTransaction transaction = await connection.BeginTransactionAsync())
                 {
@@ -590,7 +615,7 @@ namespace Reform.Logic
             if (list.Count == 1)
                 return list[0];
 
-            throw new ApplicationException($"Expected to find 1 {typeof(T).Name} but found {list.Count}");
+            throw new InvalidOperationException($"Expected to find 1 {typeof(T).Name} but found {list.Count}.");
         }
 
         public virtual T SelectSingleOrDefault(Expression<Func<T, bool>> predicate)
@@ -598,7 +623,7 @@ namespace Reform.Logic
             var list = Select(predicate).ToList();
 
             if (list.Count > 1)
-                throw new ApplicationException($"Expected to find 1 or 0 {typeof(T).Name} but found {list.Count}");
+                throw new InvalidOperationException($"Expected to find 1 or 0 {typeof(T).Name} but found {list.Count}.");
 
             return list.FirstOrDefault();
         }
@@ -610,7 +635,7 @@ namespace Reform.Logic
             if (list.Count == 1)
                 return list[0];
 
-            throw new ApplicationException($"Expected to find 1 {typeof(T).Name} but found {list.Count}");
+            throw new InvalidOperationException($"Expected to find 1 {typeof(T).Name} but found {list.Count}.");
         }
 
         public async Task<T> SelectSingleOrDefaultAsync(Expression<Func<T, bool>> predicate)
@@ -618,7 +643,7 @@ namespace Reform.Logic
             var list = (await SelectAsync(predicate)).ToList();
 
             if (list.Count > 1)
-                throw new ApplicationException($"Expected to find 1 or 0 {typeof(T).Name} but found {list.Count}");
+                throw new InvalidOperationException($"Expected to find 1 or 0 {typeof(T).Name} but found {list.Count}.");
 
             return list.FirstOrDefault();
         }
@@ -657,7 +682,7 @@ namespace Reform.Logic
 
         public async Task<IEnumerable<T>> SelectAsync(QueryCriteria<T> queryCriteria)
         {
-            await using (DbConnection connection = await _connectionProvider.GetConnectionAsync())
+            await using (DbConnection connection = await GetOpenedConnectionAsync())
             {
                 return await OnSelectAsync(connection, queryCriteria);
             }
@@ -669,6 +694,7 @@ namespace Reform.Logic
 
         protected virtual IDbConnection OnGetConnection()
         {
+            EnsureDataLayer();
             return _connectionProvider.GetConnection();
         }
 
@@ -679,71 +705,85 @@ namespace Reform.Logic
 
         protected virtual int OnCount(IDbConnection connection, Expression<Func<T, bool>> predicate)
         {
+            EnsureDataLayer();
             return _dataAccess.Count(connection, null, predicate);
         }
 
         protected virtual Task<int> OnCountAsync(IDbConnection connection, Expression<Func<T, bool>> predicate)
         {
+            EnsureDataLayer();
             return _dataAccess.CountAsync(connection, null, predicate);
         }
 
         protected virtual bool OnExists(IDbConnection connection, Expression<Func<T, bool>> predicate)
         {
+            EnsureDataLayer();
             return _dataAccess.Exists(connection, null, predicate);
         }
 
         protected virtual Task<bool> OnExistsAsync(IDbConnection connection, Expression<Func<T, bool>> predicate)
         {
+            EnsureDataLayer();
             return _dataAccess.ExistsAsync(connection, null, predicate);
         }
 
         protected virtual IEnumerable<T> OnSelect(IDbConnection connection, QueryCriteria<T> queryCriteria)
         {
+            EnsureDataLayer();
             return _dataAccess.Select(connection, null, queryCriteria);
         }
 
         protected virtual Task<IEnumerable<T>> OnSelectAsync(IDbConnection connection, QueryCriteria<T> queryCriteria)
         {
+            EnsureDataLayer();
             return _dataAccess.SelectAsync(connection, null, queryCriteria);
         }
 
         protected virtual IEnumerable<T> OnSelect(IDbConnection connection, IDbTransaction transaction, QueryCriteria<T> queryCriteria)
         {
+            EnsureDataLayer();
             return _dataAccess.Select(connection, transaction, queryCriteria);
         }
 
         protected virtual Task<IEnumerable<T>> OnSelectAsync(IDbConnection connection, IDbTransaction transaction, QueryCriteria<T> queryCriteria)
         {
+            EnsureDataLayer();
             return _dataAccess.SelectAsync(connection, transaction, queryCriteria);
         }
 
         protected virtual void OnInsert(IDbConnection connection, IDbTransaction transaction, T item)
         {
+            EnsureDataLayer();
             _dataAccess.Insert(connection, transaction, item);
         }
 
         protected virtual Task OnInsertAsync(IDbConnection connection, IDbTransaction transaction, T item)
         {
+            EnsureDataLayer();
             return _dataAccess.InsertAsync(connection, transaction, item);
         }
 
         protected virtual void OnUpdate(IDbConnection connection, IDbTransaction transaction, T item)
         {
+            EnsureDataLayer();
             _dataAccess.Update(connection, transaction, item);
         }
 
         protected virtual Task OnUpdateAsync(IDbConnection connection, IDbTransaction transaction, T item)
         {
+            EnsureDataLayer();
             return _dataAccess.UpdateAsync(connection, transaction, item);
         }
 
         protected virtual void OnDelete(IDbConnection connection, IDbTransaction transaction, T item)
         {
+            EnsureDataLayer();
             _dataAccess.Delete(connection, transaction, item);
         }
 
         protected virtual Task OnDeleteAsync(IDbConnection connection, IDbTransaction transaction, T item)
         {
+            EnsureDataLayer();
             return _dataAccess.DeleteAsync(connection, transaction, item);
         }
 

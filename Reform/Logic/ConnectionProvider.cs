@@ -36,7 +36,7 @@ namespace Reform.Logic
             }
             catch (Exception ex)
             {
-                throw new ApplicationException($"Failed to open database connection for '{_metadataProvider.DatabaseName}'", ex);
+                throw new InvalidOperationException($"Failed to open database connection for '{_metadataProvider.DatabaseName}'.", ex);
             }
         }
 
@@ -57,7 +57,7 @@ namespace Reform.Logic
             }
             catch (Exception ex)
             {
-                throw new ApplicationException($"Failed to open database connection for '{_metadataProvider.DatabaseName}'", ex);
+                throw new InvalidOperationException($"Failed to open database connection for '{_metadataProvider.DatabaseName}'.", ex);
             }
         }
     }

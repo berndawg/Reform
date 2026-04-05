@@ -161,7 +161,7 @@ namespace Reform.Logic
                     PropertyMap propertyMap = _metadataProvider.GetPropertyMapByPropertyName(sortCriteria.PropertyName);
 
                     if (propertyMap == null)
-                        throw new ApplicationException($"The type '{_metadataProvider.Type}' does not contain property metadata for the property '{sortCriteria.PropertyName}'");
+                        throw new InvalidOperationException($"The type '{_metadataProvider.Type}' does not contain property metadata for the property '{sortCriteria.PropertyName}'.");
 
                     stringBuilder.Append(_dialect.QuoteIdentifier(propertyMap.ColumnName));
 

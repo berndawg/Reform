@@ -149,8 +149,8 @@ namespace Reform.Logic
                     return;
                 }
 
-                throw new ApplicationException(
-                    $"The type '{_metadataProvider.Type}' does not contain property metadata for the property '{member.Member.Name}'");
+                throw new InvalidOperationException(
+                    $"The type '{_metadataProvider.Type}' does not contain property metadata for the property '{member.Member.Name}'.");
             }
 
             throw new NotSupportedException($"Expression type '{expression.NodeType}' is not supported for column access");

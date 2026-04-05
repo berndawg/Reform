@@ -32,12 +32,12 @@ namespace Reform.Logic
             var entityMetadataArray = (EntityMetadata[])Type.GetCustomAttributes(typeof(EntityMetadata), false);
 
             if (entityMetadataArray.Length == 0)
-                throw new ApplicationException($"Type '{Type.Name}' is missing the [EntityMetadata] attribute");
+                throw new InvalidOperationException($"Type '{Type.Name}' is missing the [EntityMetadata] attribute.");
 
             EntityMetadata entityMetadata = entityMetadataArray[0];
 
             if (string.IsNullOrEmpty(entityMetadata.TableName))
-                throw new ApplicationException($"Type '{Type.Name}' has an [EntityMetadata] attribute with no TableName specified");
+                throw new InvalidOperationException($"Type '{Type.Name}' has an [EntityMetadata] attribute with no TableName specified.");
 
             DatabaseName = string.IsNullOrEmpty(entityMetadata.DatabaseName)
                 ? ""
@@ -87,7 +87,7 @@ namespace Reform.Logic
                 if (_primaryKeyPropertyMap != null)
                     return _primaryKeyPropertyMap.PropertyName;
 
-                throw new ApplicationException($"Type '{Type}' does not have a property marked 'IsPrimaryKey'");
+                throw new InvalidOperationException($"Type '{Type}' does not have a property marked 'IsPrimaryKey'.");
             }
         }
 
@@ -98,7 +98,7 @@ namespace Reform.Logic
                 if (_primaryKeyPropertyMap != null)
                     return _primaryKeyPropertyMap.ColumnName;
 
-                throw new ApplicationException($"Type '{Type}' does not have a property marked 'IsPrimaryKey'");
+                throw new InvalidOperationException($"Type '{Type}' does not have a property marked 'IsPrimaryKey'.");
             }
         }
 
@@ -109,7 +109,7 @@ namespace Reform.Logic
                 if (_primaryKeyPropertyMap != null)
                     return _primaryKeyPropertyMap.PropertyType;
 
-                throw new ApplicationException($"Type '{Type}' does not have a property marked 'IsPrimaryKey'");
+                throw new InvalidOperationException($"Type '{Type}' does not have a property marked 'IsPrimaryKey'.");
             }
         }
 
