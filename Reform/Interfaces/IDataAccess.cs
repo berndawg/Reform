@@ -17,6 +17,7 @@ namespace Reform.Interfaces
         void Delete(IDbConnection connection, IDbTransaction transaction, T instance);
         void Delete(IDbConnection connection, IDbTransaction transaction, Expression<Func<T, bool>> predicate);
         IEnumerable<T> Select(IDbConnection connection, IDbTransaction transaction, QueryCriteria<T> queryCriteria);
+        void Truncate(IDbConnection connection, IDbTransaction transaction);
 
         Task<int> CountAsync(IDbConnection connection, IDbTransaction transaction, Expression<Func<T, bool>> predicate);
         Task<bool> ExistsAsync(IDbConnection connection, IDbTransaction transaction, Expression<Func<T, bool>> predicate);
@@ -26,5 +27,6 @@ namespace Reform.Interfaces
         Task DeleteAsync(IDbConnection connection, IDbTransaction transaction, T instance);
         Task DeleteAsync(IDbConnection connection, IDbTransaction transaction, Expression<Func<T, bool>> predicate);
         Task<IEnumerable<T>> SelectAsync(IDbConnection connection, IDbTransaction transaction, QueryCriteria<T> queryCriteria);
+        Task TruncateAsync(IDbConnection connection, IDbTransaction transaction);
     }
 }

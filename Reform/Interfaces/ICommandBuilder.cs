@@ -14,5 +14,6 @@ namespace Reform.Interfaces
         IDbCommand GetUpdateCommand(IDbConnection connection, T instance, T original,
                                     Expression<Func<T, bool>> predicate);
         IDbCommand GetDeleteCommand(IDbConnection connection, Expression<Func<T, bool>> predicate);
+        IDbCommand GetTruncateCommand(IDbConnection connection);
     }
 }

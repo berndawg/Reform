@@ -74,6 +74,13 @@ namespace Reform.Logic
             return GetCommand(connection, commandText, parameters);
         }
 
+        public IDbCommand GetTruncateCommand(IDbConnection connection)
+        {
+            string commandText = _sqlBuilder.GetTruncateSql();
+
+            return GetCommand(connection, commandText, new Dictionary<string, object>());
+        }
+
         private IDbCommand GetCommand(IDbConnection connection, string commandText, Dictionary<string, object> parameters)
         {
             var command = _dialect.CreateCommand(commandText, connection);

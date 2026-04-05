@@ -27,20 +27,28 @@ namespace Reform.Logic
         {
             foreach (PropertyMap propertyMap in _metadataProvider.RequiredProperties)
             {
-                string errorMessage = $"'{propertyMap.DisplayName}' is a required field and must not be blank.";
+                object value = propertyMap.GetPropertyValue(item);
 
-                if (propertyMap.PropertyType == typeof(string))
-                    if (string.IsNullOrWhiteSpace((string)propertyMap.GetPropertyValue(item)))
-                        yield return errorMessage;
-
-                if (propertyMap.PropertyType == typeof(Guid))
-                    if ((Guid)propertyMap.GetPropertyValue(item) == Guid.Empty)
-                        yield return errorMessage;
-
-                if (propertyMap.PropertyType == typeof(DateTime))
-                    if ((DateTime)propertyMap.GetPropertyValue(item) == DateTime.MinValue)
-                        yield return errorMessage;
+                if (IsEmpty(propertyMap.PropertyType, value))
+                    yield return $"'{propertyMap.DisplayName}' is a required field and must not be blank.";
             }
+        }
+
+        private static bool IsEmpty(Type type, object value)
+        {
+            if (value == null)
+                return true;
+
+            if (type == typeof(string))
+                return string.IsNullOrWhiteSpace((string)value);
+
+            if (type == typeof(Guid))
+                return (Guid)value == Guid.Empty;
+
+            if (type.IsValueType)
+                return value.Equals(Activator.CreateInstance(type));
+
+            return false;
         }
     }
 }

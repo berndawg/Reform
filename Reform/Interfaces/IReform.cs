@@ -33,6 +33,8 @@ namespace Reform.Interfaces
 
         void Merge(List<T> list);
 
+        void Truncate();
+
         T SelectSingle(Expression<Func<T, bool>> predicate);
         T SelectSingleOrDefault(Expression<Func<T, bool>> predicate);
 
@@ -58,6 +60,8 @@ namespace Reform.Interfaces
         Task DeleteAsync(IDbConnection connection, IDbTransaction transaction, T item);
 
         Task MergeAsync(List<T> list);
+
+        Task TruncateAsync();
 
         Task<T> SelectSingleAsync(Expression<Func<T, bool>> predicate);
         Task<T> SelectSingleOrDefaultAsync(Expression<Func<T, bool>> predicate);

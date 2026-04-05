@@ -97,6 +97,11 @@ namespace Reform.Logic
             return $"DELETE{fromClause}{where}";
         }
 
+        public string GetTruncateSql()
+        {
+            return _dialect.GetTruncateSql(GetTableName());
+        }
+
         private (string sql, Dictionary<string, object> parameters) BuildWhereClause(Expression<Func<T, bool>> predicate, int startingIndex = 0)
         {
             return _whereClauseBuilder.Build(predicate, startingIndex);

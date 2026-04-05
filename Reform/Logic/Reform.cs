@@ -520,6 +520,9 @@ namespace Reform.Logic
 
         private void MergeInternal(IDbConnection connection, IDbTransaction transaction, List<T> list)
         {
+            if (list.Count == 0)
+                throw new ArgumentException("Cannot merge an empty list. Use Delete to remove all rows.", nameof(list));
+
             if (_metadataProvider == null)
                 throw new InvalidOperationException("Merge requires IMetadataProvider<T>. Pass it to the Reform<T> constructor.");
 
@@ -557,6 +560,9 @@ namespace Reform.Logic
 
         private async Task MergeInternalAsync(IDbConnection connection, IDbTransaction transaction, List<T> list)
         {
+            if (list.Count == 0)
+                throw new ArgumentException("Cannot merge an empty list. Use Delete to remove all rows.", nameof(list));
+
             if (_metadataProvider == null)
                 throw new InvalidOperationException("Merge requires IMetadataProvider<T>. Pass it to the Reform<T> constructor.");
 
@@ -592,6 +598,52 @@ namespace Reform.Logic
             }
         }
 
+        #endregion
+
+        #region Truncate
+
+        public virtual void Truncate()
+        {
+            using (IDbConnection connection = GetConnection())
+            {
+                using (IDbTransaction transaction = connection.BeginTransaction())
+                {
+                    try
+                    {
+                        OnTruncate(connection, transaction);
+                        transaction.Commit();
+                    }
+                    catch
+                    {
+                        transaction.Rollback();
+                        throw;
+                    }
+                }
+            }
+        }
+
+        public virtual async Task TruncateAsync()
+        {
+            await using (DbConnection connection = await GetOpenedConnectionAsync())
+            {
+                await using (DbTransaction transaction = await connection.BeginTransactionAsync())
+                {
+                    try
+                    {
+                        await OnTruncateAsync(connection, transaction);
+                        await transaction.CommitAsync();
+                    }
+                    catch
+                    {
+                        await transaction.RollbackAsync();
+                        throw;
+                    }
+                }
+            }
+        }
+
+        #endregion
+
         private bool IsDefaultPrimaryKey(T item)
         {
             object pkValue = _metadataProvider.GetPrimaryKeyValue(item);
@@ -603,8 +655,6 @@ namespace Reform.Logic
 
             return false;
         }
-
-        #endregion
 
         #region SelectSingle
 
@@ -785,6 +835,18 @@ namespace Reform.Logic
         {
             EnsureDataLayer();
             return _dataAccess.DeleteAsync(connection, transaction, item);
+        }
+
+        protected virtual void OnTruncate(IDbConnection connection, IDbTransaction transaction)
+        {
+            EnsureDataLayer();
+            _dataAccess.Truncate(connection, transaction);
+        }
+
+        protected virtual Task OnTruncateAsync(IDbConnection connection, IDbTransaction transaction)
+        {
+            EnsureDataLayer();
+            return _dataAccess.TruncateAsync(connection, transaction);
         }
 
         protected virtual void OnBeforeInsert(IDbConnection connection, IDbTransaction transaction, T item) { }

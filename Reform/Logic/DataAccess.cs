@@ -92,6 +92,9 @@ namespace Reform.Logic
 
             using (IDbCommand command = _commandBuilder.GetUpdateCommand(connection, instance, list[0], predicate))
             {
+                if (string.IsNullOrEmpty(command.CommandText))
+                    return;
+
                 command.Transaction = transaction;
                 ExecuteNonQuery(command);
             }
@@ -109,6 +112,15 @@ namespace Reform.Logic
             {
                 command.Transaction = transaction;
                 command.ExecuteNonQuery();
+            }
+        }
+
+        public void Truncate(IDbConnection connection, IDbTransaction transaction)
+        {
+            using (IDbCommand command = _commandBuilder.GetTruncateCommand(connection))
+            {
+                command.Transaction = transaction;
+                ExecuteNonQuery(command);
             }
         }
 
@@ -171,6 +183,9 @@ namespace Reform.Logic
 
             using (IDbCommand command = _commandBuilder.GetUpdateCommand(connection, instance, list[0], predicate))
             {
+                if (string.IsNullOrEmpty(command.CommandText))
+                    return;
+
                 command.Transaction = transaction;
                 await ExecuteNonQueryAsync((DbCommand)command);
             }
@@ -188,6 +203,15 @@ namespace Reform.Logic
             {
                 command.Transaction = transaction;
                 await ((DbCommand)command).ExecuteNonQueryAsync();
+            }
+        }
+
+        public async Task TruncateAsync(IDbConnection connection, IDbTransaction transaction)
+        {
+            using (IDbCommand command = _commandBuilder.GetTruncateCommand(connection))
+            {
+                command.Transaction = transaction;
+                await ExecuteNonQueryAsync((DbCommand)command);
             }
         }
 

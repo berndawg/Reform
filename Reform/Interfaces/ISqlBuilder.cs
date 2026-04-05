@@ -14,5 +14,6 @@ namespace Reform.Interfaces
         string GetUpdateSql(T instance, T original, ref Dictionary<string, object> parameters,
                             Expression<Func<T, bool>> predicate);
         string GetDeleteSql(Expression<Func<T, bool>> predicate, ref Dictionary<string, object> parameters);
+        string GetTruncateSql();
     }
 }

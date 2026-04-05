@@ -39,5 +39,7 @@ namespace Reform.Dialects
         public string LikeEscapeClause => "";
 
         public string BooleanTrueLiteral => "1";
+
+        public string GetTruncateSql(string tableName) => $"TRUNCATE TABLE {tableName}";
     }
 }

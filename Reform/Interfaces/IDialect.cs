@@ -13,5 +13,6 @@ namespace Reform.Interfaces
         string EscapeLikeValue(string value);
         string LikeEscapeClause { get; }
         string BooleanTrueLiteral { get; }
+        string GetTruncateSql(string tableName);
     }
 }
