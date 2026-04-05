@@ -41,5 +41,7 @@ namespace Reform.Dialects
         public string BooleanTrueLiteral => "TRUE";
 
         public string GetTruncateSql(string tableName) => $"TRUNCATE TABLE {tableName}";
+
+        public string GetExistsSql(string subquery) => $"SELECT EXISTS({subquery})";
     }
 }

@@ -8,7 +8,8 @@
       "Bash(dotnet test:*)",
       "Bash(grep -r \"Sqlite\\\\|SqlConnection\\\\|last_insert_rowid\\\\|SCOPE_IDENTITY\\\\|LIMIT.*OFFSET\\\\|ROW_NUMBER\" /c/Users/bseab/OneDrive/Repos/Reform/Reform --include=*.cs)",
       "Bash(grep:*)",
-      "Bash(dotnet add:*)"
+      "Bash(dotnet add:*)",
+      "Bash(dotnet sln:*)"
     ]
   }
 }

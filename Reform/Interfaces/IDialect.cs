@@ -14,5 +14,6 @@ namespace Reform.Interfaces
         string LikeEscapeClause { get; }
         string BooleanTrueLiteral { get; }
         string GetTruncateSql(string tableName);
+        string GetExistsSql(string subquery);
     }
 }

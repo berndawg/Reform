@@ -43,7 +43,7 @@ namespace Reform.Logic
             string fromClause = GetFromClause();
             string where = string.IsNullOrEmpty(whereClause) ? "" : $" WHERE {whereClause}";
 
-            return $"SELECT EXISTS(SELECT 1{fromClause}{where})";
+            return _dialect.GetExistsSql($"SELECT 1{fromClause}{where}");
         }
 
         public string GetSelectSql(QueryCriteria<T> queryCriteria, ref Dictionary<string, object> parameters)
