@@ -25,7 +25,7 @@ namespace Reform.Dialects
 
         public string QuoteIdentifier(string name)
         {
-            return $"\"{name}\"";
+            return $"\"{name.Replace("\"", "\"\"")}\"";
         }
 
         public string ParameterPrefix => "@";

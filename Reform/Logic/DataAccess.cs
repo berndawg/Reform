@@ -111,7 +111,7 @@ namespace Reform.Logic
             using (IDbCommand command = _commandBuilder.GetDeleteCommand(connection, predicate))
             {
                 command.Transaction = transaction;
-                command.ExecuteNonQuery();
+                ExecuteNonQuery(command);
             }
         }
 
