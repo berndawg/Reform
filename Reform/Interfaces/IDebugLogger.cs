@@ -1,6 +1,7 @@
-namespace Reform.Interfaces;
-
-public interface IDebugLogger
+﻿namespace Reform.Interfaces
 {
-    void WriteLine(string stringValue);
+    public interface IDebugLogger
+    {
+        void WriteLine(string stringValue);
+    }
 }

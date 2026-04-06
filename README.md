@@ -1,140 +1,147 @@
 # Reform
 
-Reform is an ORM that’s extremely easy to use and extend. Stop writing SQL! Use the IReform interface instead. It includes methods like Count, Exists, Select, Insert, Update, and Delete. It supports multiple SQL dialects (SQLite, SQL Server, MySQL) and is fully customizable via dependency injection.
+Reform is a lightweight repository framework for .NET. Define POCOs, add Reform attributes, and use the `IReform<T>` interface for all your data operations. It supports SQLite, SQL Server, MySQL, and PostgreSQL out of the box, and is fully extensible to any backing store via virtual method overrides.
 
-Reform puts the C# developer back in control of how data is shaped and manipulated. Define POCOs, add Reform attributes, and you’re done. It includes support for validation, transactions, and async operations.
+## Getting Started
 
-Reform currently supports SQLite, SQL Server, and MySQL and can be extended to include support for non-database data sources, e.g. Excel spreadsheets.
+```csharp
+using Reform;
+using Reform.Attributes;
+using Reform.Interfaces;
 
-## Setup
+// Define your entity
+[EntityMetadata(DatabaseName = "MyDb", TableName = "Country")]
+public class Country
+{
+    [PropertyMetadata(ColumnName = "CountryId", IsPrimaryKey = true, IsIdentity = true)]
+    public int CountryId { get; set; }
 
-Use `ReformBuilder` to configure and build a `ReformFactory`:
+    [PropertyMetadata(ColumnName = "CountryName")]
+    public string CountryName { get; set; }
+}
 
-    var factory = new ReformBuilder()
-        .UseSqlite("Data Source=mydb.db")       // or .UseSqlServer(...) or .UseMySql(...)
-        .Build();
+// Configure and build
+ReformFactory factory = new Reformer()
+    .UseSqlite("Data Source=mydb.db")
+    .Build();
 
-    IReform<Country> countries = factory.For<Country>();
+// Use it
+IReform<Country> countryLogic = factory.For<Country>();
 
-The `ReformFactory` implements `IDisposable` and should be disposed when no longer needed.
+countryLogic.Insert(new Country { CountryName = "France" });
+
+IEnumerable<Country> countries = countryLogic.Select();
+```
+
+## Supported Dialects
+
+| Method | Dialect |
+|---|---|
+| `UseSqlite(connectionString)` | SQLite |
+| `UseSqlServer(connectionString)` | SQL Server |
+| `UseMySql(connectionString)` | MySQL |
+| `UsePostgreSql(connectionString)` | PostgreSQL |
 
 ## IReform&lt;T&gt; Interface
 
-The `IReform<T>` interface includes the following methods:
+### Sync
 
-Synchronous:
+```csharp
+IDbConnection GetConnection();
 
-- IDbConnection GetConnection()
-- int Count()
-- int Count(Expression&lt;Func&lt;T, bool&gt;&gt; predicate)
-- bool Exists(Expression&lt;Func&lt;T, bool&gt;&gt; predicate)
-- void Insert(T item)
-- void Insert(List&lt;T&gt; items)
-- void Insert(IDbConnection connection, T item)
-- void Update(T item)
-- void Update(List&lt;T&gt; list)
-- void Update(IDbConnection connection, T item)
-- void Delete(T item)
-- void Delete(List&lt;T&gt; list)
-- void Delete(IDbConnection connection, T item)
-- T SelectSingle(Expression&lt;Func&lt;T, bool&gt;&gt; predicate)
-- T SelectSingleOrDefault(Expression&lt;Func&lt;T, bool&gt;&gt; predicate)
-- IEnumerable&lt;T&gt; Select()
-- IEnumerable&lt;T&gt; Select(Expression&lt;Func&lt;T, bool&gt;&gt; predicate)
-- IEnumerable&lt;T&gt; Select(QueryCriteria&lt;T&gt; queryCriteria)
+int Count();
+int Count(Expression<Func<T, bool>> predicate);
 
-Async:
+bool Exists(Expression<Func<T, bool>> predicate);
 
-- Task&lt;int&gt; CountAsync()
-- Task&lt;int&gt; CountAsync(Expression&lt;Func&lt;T, bool&gt;&gt; predicate)
-- Task&lt;bool&gt; ExistsAsync(Expression&lt;Func&lt;T, bool&gt;&gt; predicate)
-- Task InsertAsync(T item)
-- Task InsertAsync(List&lt;T&gt; items)
-- Task UpdateAsync(T item)
-- Task UpdateAsync(List&lt;T&gt; list)
-- Task DeleteAsync(T item)
-- Task DeleteAsync(List&lt;T&gt; list)
-- Task&lt;T&gt; SelectSingleAsync(Expression&lt;Func&lt;T, bool&gt;&gt; predicate)
-- Task&lt;T&gt; SelectSingleOrDefaultAsync(Expression&lt;Func&lt;T, bool&gt;&gt; predicate)
-- Task&lt;IEnumerable&lt;T&gt;&gt; SelectAsync()
-- Task&lt;IEnumerable&lt;T&gt;&gt; SelectAsync(Expression&lt;Func&lt;T, bool&gt;&gt; predicate)
-- Task&lt;IEnumerable&lt;T&gt;&gt; SelectAsync(QueryCriteria&lt;T&gt; queryCriteria)
+void Insert(T item);
+void Insert(List<T> items);
+void Insert(IDbConnection connection, T item);
+void Insert(IDbConnection connection, IDbTransaction transaction, T item);
 
-## Overrideable Methods
+void Update(T item);
+void Update(List<T> list);
+void Update(IDbConnection connection, T item);
+void Update(IDbConnection connection, IDbTransaction transaction, T item);
 
-The `Reform<T>` implementation supports the following overrides (sync and async):
+void Delete(T item);
+void Delete(List<T> list);
+void Delete(IDbConnection connection, T item);
+void Delete(IDbConnection connection, IDbTransaction transaction, T item);
 
-- IDbConnection OnGetConnection()
-- void OnValidate(IDbConnection connection, T item)
-- int OnCount(IDbConnection connection, Expression&lt;Func&lt;T, bool&gt;&gt; predicate)
-- Task&lt;int&gt; OnCountAsync(IDbConnection connection, Expression&lt;Func&lt;T, bool&gt;&gt; predicate)
-- bool OnExists(IDbConnection connection, Expression&lt;Func&lt;T, bool&gt;&gt; predicate)
-- Task&lt;bool&gt; OnExistsAsync(IDbConnection connection, Expression&lt;Func&lt;T, bool&gt;&gt; predicate)
-- IEnumerable&lt;T&gt; OnSelect(IDbConnection connection, QueryCriteria&lt;T&gt; queryCriteria)
-- Task&lt;IEnumerable&lt;T&gt;&gt; OnSelectAsync(IDbConnection connection, QueryCriteria&lt;T&gt; queryCriteria)
-- void OnInsert(IDbConnection connection, IDbTransaction transaction, T item)
-- Task OnInsertAsync(IDbConnection connection, IDbTransaction transaction, T item)
-- void OnUpdate(IDbConnection connection, IDbTransaction transaction, T item)
-- Task OnUpdateAsync(IDbConnection connection, IDbTransaction transaction, T item)
-- void OnDelete(IDbConnection connection, IDbTransaction transaction, T item)
-- Task OnDeleteAsync(IDbConnection connection, IDbTransaction transaction, T item)
-- void OnBeforeInsert(IDbConnection connection, T item)
-- void OnBeforeUpdate(IDbConnection connection, T item)
-- void OnAfterInsert(IDbConnection connection, T item)
-- void OnAfterUpdate(IDbConnection connection, T item)
-- void OnBeforeDelete(IDbConnection connection, T item)
-- void OnAfterDelete(IDbConnection connection, T item)
-- Task OnBeforeInsertAsync(IDbConnection connection, T item)
-- Task OnBeforeUpdateAsync(IDbConnection connection, T item)
-- Task OnAfterInsertAsync(IDbConnection connection, T item)
-- Task OnAfterUpdateAsync(IDbConnection connection, T item)
-- Task OnBeforeDeleteAsync(IDbConnection connection, T item)
-- Task OnAfterDeleteAsync(IDbConnection connection, T item)
+void Merge(List<T> list);
 
-## Customization
+void Truncate();
 
-The Reform implementation is customizable. Use the `ReformBuilder.Register` method to replace any of the Reform interfaces with your own implementation:
+T SelectSingle(Expression<Func<T, bool>> predicate);
+T SelectSingleOrDefault(Expression<Func<T, bool>> predicate);
 
-    var factory = new ReformBuilder()
-        .UseSqlite("Data Source=mydb.db")
-        .Register(typeof(IDebugLogger), typeof(MyCustomLogger))
-        .Build();
+IEnumerable<T> Select();
+IEnumerable<T> Select(Expression<Func<T, bool>> predicate);
+IEnumerable<T> Select(QueryCriteria<T> queryCriteria);
+```
 
-## Sample Usage
+### Async
 
-    using System;
-    using System.Collections.Generic;
-    using Reform;
-    using Reform.Attributes;
-    using Reform.Interfaces;
+```csharp
+Task<int> CountAsync();
+Task<int> CountAsync(Expression<Func<T, bool>> predicate);
 
-    namespace ReformSample
-    {
-        class Program
-        {
-            static void Main(string[] args)
-            {
-                using var factory = new ReformBuilder()
-                    .UseSqlServer("Server=.;Database=master;Trusted_Connection=True;")
-                    .Build();
+Task<bool> ExistsAsync(Expression<Func<T, bool>> predicate);
 
-                IReform<SysObjects> logic = factory.For<SysObjects>();
+Task InsertAsync(T item);
+Task InsertAsync(List<T> items);
+Task InsertAsync(IDbConnection connection, IDbTransaction transaction, T item);
 
-                IEnumerable<SysObjects> list = logic.Select(x => x.Name.StartsWith("sys"));
+Task UpdateAsync(T item);
+Task UpdateAsync(List<T> list);
+Task UpdateAsync(IDbConnection connection, IDbTransaction transaction, T item);
 
-                foreach (var item in list)
-                    Console.WriteLine(item.Name);
-            }
-        }
+Task DeleteAsync(T item);
+Task DeleteAsync(List<T> list);
+Task DeleteAsync(IDbConnection connection, IDbTransaction transaction, T item);
 
-        [EntityMetadata(DatabaseName = "master", TableName = "sysobjects")]
-        class SysObjects
-        {
-            [PropertyMetadata(ColumnName = "id", IsPrimaryKey = true)]
-            public int Id { get; set; }
+Task MergeAsync(List<T> list);
 
-            [PropertyMetadata(ColumnName = "name")]
-            public string Name { get; set; }
-        }
-    }
+Task TruncateAsync();
 
+Task<T> SelectSingleAsync(Expression<Func<T, bool>> predicate);
+Task<T> SelectSingleOrDefaultAsync(Expression<Func<T, bool>> predicate);
+
+Task<IEnumerable<T>> SelectAsync();
+Task<IEnumerable<T>> SelectAsync(Expression<Func<T, bool>> predicate);
+Task<IEnumerable<T>> SelectAsync(QueryCriteria<T> queryCriteria);
+```
+
+## Attributes
+
+### EntityMetadata
+
+| Property | Description |
+|---|---|
+| `DatabaseName` | Database name |
+| `TableName` | Table name |
+
+### PropertyMetadata
+
+| Property | Description |
+|---|---|
+| `ColumnName` | Column name |
+| `DisplayName` | Display name (for validation messages) |
+| `IsPrimaryKey` | Marks the primary key column |
+| `IsIdentity` | Column is auto-incremented |
+| `IsReadOnly` | Column is excluded from inserts and updates |
+| `IsRequired` | Validation: value must not be null/empty |
+
+## Extensibility
+
+Reform is built on Microsoft.Extensions.DependencyInjection. Use `Register` to replace any internal service:
+
+```csharp
+ReformFactory factory = new Reformer()
+    .UseSqlite("Data Source=mydb.db")
+    .Register(typeof(IDataAccess<>), typeof(MyCustomDataAccess<>))
+    .Build();
+```
+
+You can also subclass `Reform<T>` and override its virtual methods to customise connection handling and individual operations.

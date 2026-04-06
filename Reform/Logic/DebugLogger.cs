@@ -1,12 +1,13 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using Reform.Interfaces;
 
-namespace Reform.Logic;
-
-public class DebugLogger : IDebugLogger
+namespace Reform.Logic
 {
-    public void WriteLine(string stringValue)
+    public class DebugLogger : IDebugLogger
     {
-        Debug.WriteLine(stringValue);
+        public void WriteLine(string stringValue)
+        {
+            Debug.WriteLine(stringValue);
+        }
     }
 }

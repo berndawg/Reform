@@ -1,31 +1,31 @@
 using System.Data;
-using Microsoft.Data.SqlClient;
+using Npgsql;
 using Reform.Interfaces;
 
 namespace Reform.Dialects
 {
-    public class SqlServerDialect : IDialect
+    public class PostgreSqlDialect : IDialect
     {
         public IDbConnection CreateConnection(string connectionString)
         {
-            return new SqlConnection(connectionString);
+            return new NpgsqlConnection(connectionString);
         }
 
         public IDbCommand CreateCommand(string commandText, IDbConnection connection)
         {
-            return new SqlCommand(commandText, (SqlConnection)connection);
+            return new NpgsqlCommand(commandText, (NpgsqlConnection)connection);
         }
 
-        public string IdentitySql => "SELECT SCOPE_IDENTITY()";
+        public string IdentitySql => "SELECT lastval()";
 
         public string GetPagingSql(int limit, int offset)
         {
-            return $"OFFSET {offset} ROWS FETCH NEXT {limit} ROWS ONLY";
+            return $"LIMIT {limit} OFFSET {offset}";
         }
 
         public string QuoteIdentifier(string name)
         {
-            return $"[{name.Replace("]", "]]")}]";
+            return $"\"{name.Replace("\"", "\"\"")}\"";
         }
 
         public string ParameterPrefix => "@";
@@ -33,15 +33,15 @@ namespace Reform.Dialects
         public string EscapeLikeValue(string value)
         {
             if (value == null) return null;
-            return value.Replace("[", "[[]").Replace("%", "[%]").Replace("_", "[_]");
+            return value.Replace(@"\", @"\\").Replace("%", @"\%").Replace("_", @"\_");
         }
 
-        public string LikeEscapeClause => "";
+        public string LikeEscapeClause => @" ESCAPE '\'";
 
-        public string BooleanTrueLiteral => "1";
+        public string BooleanTrueLiteral => "TRUE";
 
         public string GetTruncateSql(string tableName) => $"TRUNCATE TABLE {tableName}";
 
-        public string GetExistsSql(string subquery) => $"SELECT CASE WHEN EXISTS({subquery}) THEN 1 ELSE 0 END";
+        public string GetExistsSql(string subquery) => $"SELECT EXISTS({subquery})";
     }
 }

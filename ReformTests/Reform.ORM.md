@@ -1,139 +1,165 @@
 # Reform
 
-Reform is an ORM that’s extremely easy to use and extend. Stop writing SQL! Use the IReform interface instead. It includes methods like Count, Exists, Select, Insert, Update, and Delete. It supports multiple SQL dialects (SQLite, SQL Server, MySQL) and is fully customizable via dependency injection.
+Reform is a lightweight repository framework for .NET 8 that supports any backing store via virtual method overrides. Define POCOs, add Reform attributes, and you're done. It includes support for validation, transactions, and async operations, and supports SQLite, SQL Server, and MySQL out of the box.
 
-Reform puts the C# developer back in control of how data is shaped and manipulated. Define POCOs, add Reform attributes, and you’re done. It includes support for validation, transactions, and async operations. 
+## Getting Started
 
-Reform current supports SqLite, SQL Server, and MySQL and can be extended to include support for non-database data sources, e.g. Excel spreadsheets.
+```csharp
+using Reform;
+using Reform.Attributes;
+using Reform.Interfaces;
 
-## Setup
+// Configure and build
+var factory = new Reformer()
+    .UseSqlite("Data Source=mydb.db")
+    .Build();
 
-Use `ReformBuilder` to configure and build a `ReformFactory`:
+// Use it
+IReform<Country> countryLogic = factory.For<Country>();
 
-    var factory = new ReformBuilder()
-        .UseSqlite("Data Source=mydb.db")       // or .UseSqlServer(...) or .UseMySql(...)
-        .Build();
+countryLogic.Insert(new Country { CountryName = "Morocco" });
 
-    IReform<Country> countries = factory.For<Country>();
+var countries = countryLogic.Select(x => x.CountryName.StartsWith("M")).ToList();
 
-The `ReformFactory` implements `IDisposable` and should be disposed when no longer needed.
+foreach (var country in countries)
+    Console.WriteLine(country.CountryName);
+
+// Clean up
+factory.Dispose();
+```
+
+## Defining Entities
+
+```csharp
+[EntityMetadata(DatabaseName = "MyDb", TableName = "Country")]
+public class Country
+{
+    [PropertyMetadata(ColumnName = "CountryId", IsPrimaryKey = true, IsIdentity = true)]
+    public int CountryId { get; set; }
+
+    [PropertyMetadata(ColumnName = "CountryName", IsRequired = true)]
+    public string CountryName { get; set; }
+}
+```
+
+### PropertyMetadata Options
+
+| Property      | Description                                    |
+|---------------|------------------------------------------------|
+| ColumnName    | Database column name                           |
+| DisplayName   | Friendly name used in validation messages      |
+| IsPrimaryKey  | Marks the property as the primary key          |
+| IsIdentity    | Auto-incremented by the database               |
+| IsReadOnly    | Excluded from INSERT and UPDATE statements     |
+| IsRequired    | Validated as non-empty before insert/update    |
 
 ## IReform&lt;T&gt; Interface
 
-The `IReform<T>` interface includes the following methods:
+### Queries
+- `int Count()`
+- `int Count(Expression<Func<T, bool>> predicate)`
+- `bool Exists(Expression<Func<T, bool>> predicate)`
+- `T SelectSingle(Expression<Func<T, bool>> predicate)`
+- `T SelectSingleOrDefault(Expression<Func<T, bool>> predicate)`
+- `IEnumerable<T> Select()`
+- `IEnumerable<T> Select(Expression<Func<T, bool>> predicate)`
+- `IEnumerable<T> Select(QueryCriteria<T> queryCriteria)`
 
-Synchronous:
+### Commands
+- `void Insert(T item)`
+- `void Insert(List<T> items)`
+- `void Update(T item)`
+- `void Update(List<T> list)`
+- `void Delete(T item)`
+- `void Delete(List<T> list)`
+- `void Merge(List<T> list)`
 
-- IDbConnection GetConnection()
-- int Count()
-- int Count(Expression&lt;Func&lt;T, bool&gt;&gt; predicate)
-- bool Exists(Expression&lt;Func&lt;T, bool&gt;&gt; predicate)
-- void Insert(T item)
-- void Insert(List&lt;T&gt; items)
-- void Insert(IDbConnection connection, T item)
-- void Update(T item)
-- void Update(List&lt;T&gt; list)
-- void Update(IDbConnection connection, T item)
-- void Delete(T item)
-- void Delete(List&lt;T&gt; list)
-- void Delete(IDbConnection connection, T item)
-- T SelectSingle(Expression&lt;Func&lt;T, bool&gt;&gt; predicate)
-- T SelectSingleOrDefault(Expression&lt;Func&lt;T, bool&gt;&gt; predicate)
-- IEnumerable&lt;T&gt; Select()
-- IEnumerable&lt;T&gt; Select(Expression&lt;Func&lt;T, bool&gt;&gt; predicate)
-- IEnumerable&lt;T&gt; Select(QueryCriteria&lt;T&gt; queryCriteria)
+### Connection & Transaction Overloads
+- `IDbConnection GetConnection()`
+- `void Insert(IDbConnection connection, T item)`
+- `void Insert(IDbConnection connection, IDbTransaction transaction, T item)`
+- `void Update(IDbConnection connection, T item)`
+- `void Update(IDbConnection connection, IDbTransaction transaction, T item)`
+- `void Delete(IDbConnection connection, T item)`
+- `void Delete(IDbConnection connection, IDbTransaction transaction, T item)`
 
-Async:
+### Async Variants
 
-- Task&lt;int&gt; CountAsync()
-- Task&lt;int&gt; CountAsync(Expression&lt;Func&lt;T, bool&gt;&gt; predicate)
-- Task&lt;bool&gt; ExistsAsync(Expression&lt;Func&lt;T, bool&gt;&gt; predicate)
-- Task InsertAsync(T item)
-- Task InsertAsync(List&lt;T&gt; items)
-- Task UpdateAsync(T item)
-- Task UpdateAsync(List&lt;T&gt; list)
-- Task DeleteAsync(T item)
-- Task DeleteAsync(List&lt;T&gt; list)
-- Task&lt;T&gt; SelectSingleAsync(Expression&lt;Func&lt;T, bool&gt;&gt; predicate)
-- Task&lt;T&gt; SelectSingleOrDefaultAsync(Expression&lt;Func&lt;T, bool&gt;&gt; predicate)
-- Task&lt;IEnumerable&lt;T&gt;&gt; SelectAsync()
-- Task&lt;IEnumerable&lt;T&gt;&gt; SelectAsync(Expression&lt;Func&lt;T, bool&gt;&gt; predicate)
-- Task&lt;IEnumerable&lt;T&gt;&gt; SelectAsync(QueryCriteria&lt;T&gt; queryCriteria)
+All query and command methods have async counterparts (e.g. `CountAsync`, `InsertAsync`, `SelectAsync`, etc.), including transaction overloads.
 
-## Overrideable Methods
+## User-Controlled Transactions
 
-The `Reform<T>` implementation supports the following overrides (sync and async):
+```csharp
+IReform<Country> countryLogic = factory.For<Country>();
 
-- IDbConnection OnGetConnection()
-- void OnValidate(IDbConnection connection, T item)
-- int OnCount(IDbConnection connection, Expression&lt;Func&lt;T, bool&gt;&gt; predicate)
-- Task&lt;int&gt; OnCountAsync(IDbConnection connection, Expression&lt;Func&lt;T, bool&gt;&gt; predicate)
-- bool OnExists(IDbConnection connection, Expression&lt;Func&lt;T, bool&gt;&gt; predicate)
-- Task&lt;bool&gt; OnExistsAsync(IDbConnection connection, Expression&lt;Func&lt;T, bool&gt;&gt; predicate)
-- IEnumerable&lt;T&gt; OnSelect(IDbConnection connection, QueryCriteria&lt;T&gt; queryCriteria)
-- Task&lt;IEnumerable&lt;T&gt;&gt; OnSelectAsync(IDbConnection connection, QueryCriteria&lt;T&gt; queryCriteria)
-- void OnInsert(IDbConnection connection, IDbTransaction transaction, T item)
-- Task OnInsertAsync(IDbConnection connection, IDbTransaction transaction, T item)
-- void OnUpdate(IDbConnection connection, IDbTransaction transaction, T item)
-- Task OnUpdateAsync(IDbConnection connection, IDbTransaction transaction, T item)
-- void OnDelete(IDbConnection connection, IDbTransaction transaction, T item)
-- Task OnDeleteAsync(IDbConnection connection, IDbTransaction transaction, T item)
-- void OnBeforeInsert(IDbConnection connection, T item)
-- void OnBeforeUpdate(IDbConnection connection, T item)
-- void OnAfterInsert(IDbConnection connection, T item)
-- void OnAfterUpdate(IDbConnection connection, T item)
-- void OnBeforeDelete(IDbConnection connection, T item)
-- void OnAfterDelete(IDbConnection connection, T item)
-- Task OnBeforeInsertAsync(IDbConnection connection, T item)
-- Task OnBeforeUpdateAsync(IDbConnection connection, T item)
-- Task OnAfterInsertAsync(IDbConnection connection, T item)
-- Task OnAfterUpdateAsync(IDbConnection connection, T item)
-- Task OnBeforeDeleteAsync(IDbConnection connection, T item)
-- Task OnAfterDeleteAsync(IDbConnection connection, T item)
+using var connection = countryLogic.GetConnection();
+using var transaction = connection.BeginTransaction();
+try
+{
+    countryLogic.Insert(connection, transaction, new Country { CountryName = "Norway" });
+    countryLogic.Insert(connection, transaction, new Country { CountryName = "Sweden" });
+    transaction.Commit();
+}
+catch
+{
+    transaction.Rollback();
+    throw;
+}
+```
+
+## Supported Databases
+
+| Database   | Configuration          |
+|------------|------------------------|
+| SQLite     | `new Reformer().UseSqlite(connectionString)`     |
+| SQL Server | `new Reformer().UseSqlServer(connectionString)`  |
+| MySQL      | `new Reformer().UseMySql(connectionString)`      |
 
 ## Customization
 
-The Reform implementation is customizable. Use the `ReformBuilder.Register` method to replace any of the Reform interfaces with your own implementation:
+### Registering Custom Types
 
-    var factory = new ReformBuilder()
-        .UseSqlite("Data Source=mydb.db")
-        .Register(typeof(IDebugLogger), typeof(MyCustomLogger))
-        .Build();
+Replace any internal service with your own implementation:
 
-## Sample Usage
+```csharp
+var factory = new Reformer()
+    .UseSqlite("Data Source=mydb.db")
+    .Register(typeof(IDebugLogger), typeof(MyCustomLogger))
+    .Build();
+```
 
-    using System;
-    using System.Collections.Generic;
-    using Reform;
-    using Reform.Attributes;
-    using Reform.Interfaces;
+### Overrideable Methods
 
-    namespace ReformSample
-    {
-        class Program
-        {
-            static void Main(string[] args)
-            {
-                using var factory = new ReformBuilder()
-                    .UseSqlServer("Server=.;Database=master;Trusted_Connection=True;")
-                    .Build();
+The `Reform<T>` base class exposes protected virtual methods for deep customization:
 
-                IReform<SysObjects> logic = factory.For<SysObjects>();
+**Connection**
+- `OnGetConnection()` -- control how connections are obtained
 
-                IEnumerable<SysObjects> list = logic.Select(x => x.Name.StartsWith("sys"));
+**Validation**
+- `OnValidate(IDbConnection, T)` -- custom validation logic
 
-                foreach (var item in list)
-                    Console.WriteLine(item.Name);
-            }
-        }
+**Operations** (each receives connection + transaction)
+- `OnCount`, `OnCountAsync`
+- `OnExists`, `OnExistsAsync`
+- `OnSelect`, `OnSelectAsync`
+- `OnInsert`, `OnInsertAsync`
+- `OnUpdate`, `OnUpdateAsync`
+- `OnDelete`, `OnDeleteAsync`
 
-        [EntityMetadata(DatabaseName = "master", TableName = "sysobjects")]
-        class SysObjects
-        {
-            [PropertyMetadata(ColumnName = "id", IsPrimaryKey = true)]
-            public int Id { get; set; }
+**Lifecycle Hooks** (each receives connection + transaction + item)
+- `OnBeforeInsert`, `OnBeforeInsertAsync`
+- `OnAfterInsert`, `OnAfterInsertAsync`
+- `OnBeforeUpdate`, `OnBeforeUpdateAsync`
+- `OnAfterUpdate`, `OnAfterUpdateAsync`
+- `OnBeforeDelete`, `OnBeforeDeleteAsync`
+- `OnAfterDelete`, `OnAfterDeleteAsync`
 
-            [PropertyMetadata(ColumnName = "name")]
-            public string Name { get; set; }
-        }
-    }
+## Architecture
+
+```
+IReform<T>  -->  Reform<T>  -->  IDataAccess<T>  -->  ICommandBuilder<T>  -->  ISqlBuilder<T>
+                                                                                    |
+                                                                          WhereClauseBuilder<T>
+```
+
+Each layer can be replaced via the DI container by calling `Register()` on the `Reformer` builder.
