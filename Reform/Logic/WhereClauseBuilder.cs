@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Text;
@@ -64,8 +62,8 @@ namespace Reform.Logic
             VisitMemberForColumn(node.Left);
             _sql.Append(GetOperator(node.NodeType));
 
-            object value = GetValue(node.Right);
-            string paramName = AddParameter(value);
+            var value = GetValue(node.Right);
+            var paramName = AddParameter(value);
             _sql.Append($"@{paramName}");
 
             return node;
@@ -212,7 +210,7 @@ namespace Reform.Logic
         private string AddParameter(object value)
         {
             _parameterIndex++;
-            string name = $"P{_parameterIndex}";
+            var name = $"P{_parameterIndex}";
             _parameters.Add(name, value);
             return name;
         }

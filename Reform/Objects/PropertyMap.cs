@@ -1,4 +1,3 @@
-using System;
 using System.Linq.Expressions;
 using System.Reflection;
 using Reform.Attributes;
@@ -10,7 +9,7 @@ namespace Reform.Objects
         private readonly Func<object, object> _getter;
         private readonly Action<object, object> _setter;
 
-        public PropertyMap(PropertyInfo propertyInfo, PropertyMetadata propertyMetadata)
+        public PropertyMap(PropertyInfo propertyInfo, PropertyMetadataAttribute propertyMetadata)
         {
             PropertyInfo = propertyInfo;
             PropertyMetadata = propertyMetadata;
@@ -20,7 +19,7 @@ namespace Reform.Objects
         }
 
         public PropertyInfo PropertyInfo { get; }
-        public PropertyMetadata PropertyMetadata { get; }
+        public PropertyMetadataAttribute PropertyMetadata { get; }
 
         public string DisplayName => string.IsNullOrEmpty(PropertyMetadata.DisplayName) ? PropertyMetadata.ColumnName : PropertyMetadata.DisplayName;
         public bool IsRequired => PropertyMetadata.IsRequired;

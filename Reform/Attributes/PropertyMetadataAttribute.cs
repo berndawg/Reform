@@ -1,6 +1,7 @@
 namespace Reform.Attributes;
 
-public class PropertyMetadata : Attribute
+[AttributeUsage(AttributeTargets.Property)]
+public class PropertyMetadataAttribute : Attribute
 {
     public string? ColumnName { get; init; }
     public string? DisplayName { get; init; }

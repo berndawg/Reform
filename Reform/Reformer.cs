@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using Microsoft.Extensions.DependencyInjection;
 using Reform.Dialects;
 using Reform.Interfaces;
@@ -68,8 +66,7 @@ namespace Reform
             services.AddSingleton<IDebugLogger, DebugLogger>();
 
             // Connection string provider
-            if (_connectionString != null)
-                services.AddSingleton<IConnectionStringProvider>(new DefaultConnectionStringProvider(_connectionString));
+            services.AddSingleton<IConnectionStringProvider>(new DefaultConnectionStringProvider(_connectionString));
 
             // Generic services
             services.AddSingleton(typeof(IMetadataProvider<>), typeof(MetadataProvider<>));

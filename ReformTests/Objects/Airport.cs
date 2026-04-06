@@ -9,10 +9,10 @@ public class Airport
     public int AirportId { get; set; }
 
     [PropertyMetadata(ColumnName = "AirportCode", DisplayName = "Airport Code", IsRequired = true)]
-    public string AirportCode { get; set; }
+    public string AirportCode { get; set; } = "";
 
     [PropertyMetadata(ColumnName = "AirportName", DisplayName = "Airport Name", IsRequired = true)]
-    public string AirportName { get; set; }
+    public string AirportName { get; set; } = "";
 
     [PropertyMetadata(ColumnName = "CountryId", IsRequired = true)]
     public int CountryId { get; set; }

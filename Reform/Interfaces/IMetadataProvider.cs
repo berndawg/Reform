@@ -16,5 +16,5 @@ public interface IMetadataProvider<T> where T : class
     PropertyMap? GetPropertyMapByPropertyName(string propertyName);
     PropertyMap? GetPropertyMapByColumnName(string columnName);
     object GetPrimaryKeyValue(T instance);
-    void SetPrimaryKeyValue(T instance, object id);
+    void SetPrimaryKeyValue(T instance, object? id);
 }

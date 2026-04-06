@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using Reform.Interfaces;
 using Reform.Objects;
 
@@ -17,7 +14,7 @@ namespace Reform.Logic
 
         public void Validate(T item)
         {
-            IEnumerable<string> errors = GetErrors(item);
+            var errors = GetErrors(item);
 
             if (errors.Any())
                 throw new ArgumentException(string.Join(Environment.NewLine, errors), nameof(item));
@@ -25,9 +22,9 @@ namespace Reform.Logic
 
         private IEnumerable<string> GetErrors(T item)
         {
-            foreach (PropertyMap propertyMap in _metadataProvider.RequiredProperties)
+            foreach (var propertyMap in _metadataProvider.RequiredProperties)
             {
-                object value = propertyMap.GetPropertyValue(item);
+                var value = propertyMap.GetPropertyValue(item);
 
                 if (IsEmpty(propertyMap.PropertyType, value))
                     yield return $"'{propertyMap.DisplayName}' is a required field and must not be blank.";

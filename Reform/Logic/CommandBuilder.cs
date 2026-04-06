@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using System.Data;
 using System.Linq.Expressions;
 using Reform.Interfaces;
@@ -22,29 +20,28 @@ namespace Reform.Logic
 
         public IDbCommand GetCountCommand(IDbConnection connection, Expression<Func<T, bool>> predicate)
         {
-            string commandText = _sqlBuilder.GetCountSql(predicate, out Dictionary<string, object> parameters);
+            var commandText = _sqlBuilder.GetCountSql(predicate, out var parameters);
             return GetCommand(connection, commandText, parameters);
         }
 
         public IDbCommand GetExistsCommand(IDbConnection connection, Expression<Func<T, bool>> predicate)
         {
-            string commandText = _sqlBuilder.GetExistsSql(predicate, out Dictionary<string, object> parameters);
+            var commandText = _sqlBuilder.GetExistsSql(predicate, out var parameters);
             return GetCommand(connection, commandText, parameters);
         }
 
         public IDbCommand GetSelectCommand(IDbConnection connection, QueryCriteria<T> queryCriteria)
         {
-            bool doPaging = queryCriteria.PageCriteria != null && queryCriteria.PageCriteria.PageSize != 0 &&
-                            queryCriteria.PageCriteria.Page != 0;
+            var doPaging = queryCriteria.PageCriteria.PageSize != 0 &&
+                           queryCriteria.PageCriteria.Page != 0;
 
-            if (doPaging)
+            if (doPaging && queryCriteria.SortCriteria.Count == 0)
             {
-                if (queryCriteria.SortCriteria.Count == 0)
-                    queryCriteria.SortCriteria.Add(SortCriterion.Ascending(_metadataProvider.PrimaryKeyPropertyName));
+                queryCriteria.SortCriteria.Add(SortCriterion.Ascending(_metadataProvider.PrimaryKeyPropertyName));
             }
 
             var parameters = new Dictionary<string, object>();
-            string commandText = _sqlBuilder.GetSelectSql(queryCriteria, ref parameters);
+            var commandText = _sqlBuilder.GetSelectSql(queryCriteria, ref parameters);
 
             return GetCommand(connection, commandText, parameters);
         }
@@ -52,7 +49,7 @@ namespace Reform.Logic
         public IDbCommand GetInsertCommand(IDbConnection connection, T instance)
         {
             var parameters = new Dictionary<string, object>();
-            string commandText = _sqlBuilder.GetInsertSql(instance, ref parameters);
+            var commandText = _sqlBuilder.GetInsertSql(instance, ref parameters);
 
             return GetCommand(connection, $"{commandText}; {_dialect.IdentitySql}", parameters);
         }
@@ -61,7 +58,7 @@ namespace Reform.Logic
                                            Expression<Func<T, bool>> predicate)
         {
             var parameters = new Dictionary<string, object>();
-            string commandText = _sqlBuilder.GetUpdateSql(instance, original, ref parameters, predicate);
+            var commandText = _sqlBuilder.GetUpdateSql(instance, original, ref parameters, predicate);
 
             return GetCommand(connection, commandText, parameters);
         }
@@ -69,14 +66,14 @@ namespace Reform.Logic
         public IDbCommand GetDeleteCommand(IDbConnection connection, Expression<Func<T, bool>> predicate)
         {
             var parameters = new Dictionary<string, object>();
-            string commandText = _sqlBuilder.GetDeleteSql(predicate, ref parameters);
+            var commandText = _sqlBuilder.GetDeleteSql(predicate, ref parameters);
 
             return GetCommand(connection, commandText, parameters);
         }
 
         public IDbCommand GetTruncateCommand(IDbConnection connection)
         {
-            string commandText = _sqlBuilder.GetTruncateSql();
+            var commandText = _sqlBuilder.GetTruncateSql();
 
             return GetCommand(connection, commandText, new Dictionary<string, object>());
         }
@@ -85,11 +82,11 @@ namespace Reform.Logic
         {
             var command = _dialect.CreateCommand(commandText, connection);
 
-            foreach (string param in parameters.Keys)
+            foreach (var param in parameters.Keys)
             {
                 var p = command.CreateParameter();
                 p.ParameterName = $"{_dialect.ParameterPrefix}{param}";
-                p.Value = parameters[param] ?? DBNull.Value;
+                p.Value = parameters[param];
                 command.Parameters.Add(p);
             }
 
