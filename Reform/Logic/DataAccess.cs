@@ -35,21 +35,21 @@ namespace Reform.Logic
 
         #region Sync
 
-        public int Count(IDbConnection connection, IDbTransaction transaction, Expression<Func<T, bool>> predicate)
+        public int Count(IDbConnection connection, IDbTransaction? transaction, Expression<Func<T, bool>>? predicate)
         {
             using var command = _commandBuilder.GetCountCommand(connection, predicate);
             command.Transaction = transaction;
             return Convert.ToInt32(ExecuteScalar(command));
         }
 
-        public bool Exists(IDbConnection connection, IDbTransaction transaction, Expression<Func<T, bool>> predicate)
+        public bool Exists(IDbConnection connection, IDbTransaction? transaction, Expression<Func<T, bool>>? predicate)
         {
             using var command = _commandBuilder.GetExistsCommand(connection, predicate);
             command.Transaction = transaction;
             return Convert.ToInt64(ExecuteScalar(command)) == 1;
         }
 
-        public IEnumerable<T> Select(IDbConnection connection, IDbTransaction transaction,
+        public IEnumerable<T> Select(IDbConnection connection, IDbTransaction? transaction,
             QueryCriteria<T> queryCriteria)
         {
             using var command = _commandBuilder.GetSelectCommand(connection, queryCriteria);
@@ -57,7 +57,7 @@ namespace Reform.Logic
             return ExecuteReader(command);
         }
 
-        public void Insert(IDbConnection connection, IDbTransaction transaction, T instance)
+        public void Insert(IDbConnection connection, IDbTransaction? transaction, T instance)
         {
             using var command = _commandBuilder.GetInsertCommand(connection, instance);
             command.Transaction = transaction;
@@ -68,13 +68,13 @@ namespace Reform.Logic
                     Convert.ChangeType(id, _metadataProvider.PrimaryKeyPropertyType));
         }
 
-        public void Update(IDbConnection connection, IDbTransaction transaction, T instance)
+        public void Update(IDbConnection connection, IDbTransaction? transaction, T instance)
         {
             var predicate = BuildPkPredicate(_metadataProvider.GetPrimaryKeyValue(instance));
             Update(connection, transaction, instance, predicate);
         }
 
-        public void Update(IDbConnection connection, IDbTransaction transaction, T instance,
+        public void Update(IDbConnection connection, IDbTransaction? transaction, T instance,
             Expression<Func<T, bool>> predicate)
         {
             var queryCriteria = new QueryCriteria<T> { Predicate = predicate };
@@ -91,20 +91,20 @@ namespace Reform.Logic
             ExecuteNonQuery(command);
         }
 
-        public void Delete(IDbConnection connection, IDbTransaction transaction, T instance)
+        public void Delete(IDbConnection connection, IDbTransaction? transaction, T instance)
         {
             var predicate = BuildPkPredicate(_metadataProvider.GetPrimaryKeyValue(instance));
             Delete(connection, transaction, predicate);
         }
 
-        public void Delete(IDbConnection connection, IDbTransaction transaction, Expression<Func<T, bool>> predicate)
+        public void Delete(IDbConnection connection, IDbTransaction? transaction, Expression<Func<T, bool>> predicate)
         {
             using var command = _commandBuilder.GetDeleteCommand(connection, predicate);
             command.Transaction = transaction;
             ExecuteNonQuery(command);
         }
 
-        public void Truncate(IDbConnection connection, IDbTransaction transaction)
+        public void Truncate(IDbConnection connection, IDbTransaction? transaction)
         {
             using var command = _commandBuilder.GetTruncateCommand(connection);
             command.Transaction = transaction;
@@ -115,23 +115,23 @@ namespace Reform.Logic
 
         #region Async
 
-        public async Task<int> CountAsync(IDbConnection connection, IDbTransaction transaction,
-            Expression<Func<T, bool>> predicate)
+        public async Task<int> CountAsync(IDbConnection connection, IDbTransaction? transaction,
+            Expression<Func<T, bool>>? predicate)
         {
             using var command = _commandBuilder.GetCountCommand(connection, predicate);
             command.Transaction = transaction;
             return Convert.ToInt32(await ExecuteScalarAsync((DbCommand)command));
         }
 
-        public async Task<bool> ExistsAsync(IDbConnection connection, IDbTransaction transaction,
-            Expression<Func<T, bool>> predicate)
+        public async Task<bool> ExistsAsync(IDbConnection connection, IDbTransaction? transaction,
+            Expression<Func<T, bool>>? predicate)
         {
             using var command = _commandBuilder.GetExistsCommand(connection, predicate);
             command.Transaction = transaction;
             return Convert.ToInt64(await ExecuteScalarAsync((DbCommand)command)) == 1;
         }
 
-        public async Task<IEnumerable<T>> SelectAsync(IDbConnection connection, IDbTransaction transaction,
+        public async Task<IEnumerable<T>> SelectAsync(IDbConnection connection, IDbTransaction? transaction,
             QueryCriteria<T> queryCriteria)
         {
             using var command = _commandBuilder.GetSelectCommand(connection, queryCriteria);
@@ -139,7 +139,7 @@ namespace Reform.Logic
             return await ExecuteReaderAsync((DbCommand)command);
         }
 
-        public async Task InsertAsync(IDbConnection connection, IDbTransaction transaction, T instance)
+        public async Task InsertAsync(IDbConnection connection, IDbTransaction? transaction, T instance)
         {
             using var command = _commandBuilder.GetInsertCommand(connection, instance);
             command.Transaction = transaction;
@@ -150,13 +150,13 @@ namespace Reform.Logic
                     Convert.ChangeType(id, _metadataProvider.PrimaryKeyPropertyType));
         }
 
-        public async Task UpdateAsync(IDbConnection connection, IDbTransaction transaction, T instance)
+        public async Task UpdateAsync(IDbConnection connection, IDbTransaction? transaction, T instance)
         {
             var predicate = BuildPkPredicate(_metadataProvider.GetPrimaryKeyValue(instance));
             await UpdateAsync(connection, transaction, instance, predicate);
         }
 
-        public async Task UpdateAsync(IDbConnection connection, IDbTransaction transaction, T instance,
+        public async Task UpdateAsync(IDbConnection connection, IDbTransaction? transaction, T instance,
             Expression<Func<T, bool>> predicate)
         {
             var queryCriteria = new QueryCriteria<T> { Predicate = predicate };
@@ -173,13 +173,13 @@ namespace Reform.Logic
             await ExecuteNonQueryAsync((DbCommand)command);
         }
 
-        public async Task DeleteAsync(IDbConnection connection, IDbTransaction transaction, T instance)
+        public async Task DeleteAsync(IDbConnection connection, IDbTransaction? transaction, T instance)
         {
             var predicate = BuildPkPredicate(_metadataProvider.GetPrimaryKeyValue(instance));
             await DeleteAsync(connection, transaction, predicate);
         }
 
-        public async Task DeleteAsync(IDbConnection connection, IDbTransaction transaction,
+        public async Task DeleteAsync(IDbConnection connection, IDbTransaction? transaction,
             Expression<Func<T, bool>> predicate)
         {
             using var command = _commandBuilder.GetDeleteCommand(connection, predicate);
@@ -187,7 +187,7 @@ namespace Reform.Logic
             await ((DbCommand)command).ExecuteNonQueryAsync();
         }
 
-        public async Task TruncateAsync(IDbConnection connection, IDbTransaction transaction)
+        public async Task TruncateAsync(IDbConnection connection, IDbTransaction? transaction)
         {
             using var command = _commandBuilder.GetTruncateCommand(connection);
             command.Transaction = transaction;

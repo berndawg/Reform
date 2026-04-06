@@ -17,7 +17,7 @@ public class ReformFactory : IDisposable
         return _serviceProvider.GetRequiredService<IReform<T>>();
     }
 
-    public T Resolve<T>()
+    public T Resolve<T>() where T : notnull
     {
         return _serviceProvider.GetRequiredService<T>();
     }

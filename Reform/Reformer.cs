@@ -8,32 +8,32 @@ namespace Reform
     public class Reformer
     {
         private Type _dialectType = typeof(SqliteDialect);
-        private string _connectionString;
+        private string? _connectionString;
         private readonly Dictionary<Type, Type> _registrations = new();
         private readonly Dictionary<Type, object> _instances = new();
 
-        public Reformer UseSqlite(string connectionString = null)
+        public Reformer UseSqlite(string? connectionString = null)
         {
             _dialectType = typeof(SqliteDialect);
             _connectionString = connectionString;
             return this;
         }
 
-        public Reformer UseSqlServer(string connectionString = null)
+        public Reformer UseSqlServer(string? connectionString = null)
         {
             _dialectType = typeof(SqlServerDialect);
             _connectionString = connectionString;
             return this;
         }
 
-        public Reformer UseMySql(string connectionString = null)
+        public Reformer UseMySql(string? connectionString = null)
         {
             _dialectType = typeof(MySqlDialect);
             _connectionString = connectionString;
             return this;
         }
 
-        public Reformer UsePostgreSql(string connectionString = null)
+        public Reformer UsePostgreSql(string? connectionString = null)
         {
             _dialectType = typeof(PostgreSqlDialect);
             _connectionString = connectionString;
@@ -46,7 +46,7 @@ namespace Reform
             return this;
         }
 
-        public Reformer Register<TService>(TService instance)
+        public Reformer Register<TService>(TService instance) where TService : notnull
         {
             _instances[typeof(TService)] = instance;
             return this;

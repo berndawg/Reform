@@ -21,13 +21,13 @@ namespace Reform.Objects
         public PropertyInfo PropertyInfo { get; }
         public PropertyMetadataAttribute PropertyMetadata { get; }
 
-        public string DisplayName => string.IsNullOrEmpty(PropertyMetadata.DisplayName) ? PropertyMetadata.ColumnName : PropertyMetadata.DisplayName;
+        public string DisplayName => string.IsNullOrEmpty(PropertyMetadata.DisplayName) ? PropertyMetadata.ColumnName! : PropertyMetadata.DisplayName!;
         public bool IsRequired => PropertyMetadata.IsRequired;
         public bool IsReadOnly => PropertyMetadata.IsReadOnly;
         public bool IsPrimaryKey => PropertyMetadata.IsPrimaryKey;
         public bool IsIdentity => PropertyMetadata.IsIdentity;
         public string PropertyName => PropertyInfo.Name;
-        public string ColumnName => PropertyMetadata.ColumnName;
+        public string ColumnName => PropertyMetadata.ColumnName!;
         public Type PropertyType => PropertyInfo.PropertyType;
 
         public object GetPropertyValue(object instance)
@@ -43,7 +43,7 @@ namespace Reform.Objects
         private static Func<object, object> BuildGetter(PropertyInfo propertyInfo)
         {
             var instanceParam = Expression.Parameter(typeof(object), "instance");
-            var castInstance = Expression.Convert(instanceParam, propertyInfo.DeclaringType);
+            var castInstance = Expression.Convert(instanceParam, propertyInfo.DeclaringType!);
             var propertyAccess = Expression.Property(castInstance, propertyInfo);
             var castResult = Expression.Convert(propertyAccess, typeof(object));
             return Expression.Lambda<Func<object, object>>(castResult, instanceParam).Compile();
@@ -53,7 +53,7 @@ namespace Reform.Objects
         {
             var instanceParam = Expression.Parameter(typeof(object), "instance");
             var valueParam = Expression.Parameter(typeof(object), "value");
-            var castInstance = Expression.Convert(instanceParam, propertyInfo.DeclaringType);
+            var castInstance = Expression.Convert(instanceParam, propertyInfo.DeclaringType!);
             var castValue = Expression.Convert(valueParam, propertyInfo.PropertyType);
             var propertyAccess = Expression.Property(castInstance, propertyInfo);
             var assign = Expression.Assign(propertyAccess, castValue);

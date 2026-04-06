@@ -10,7 +10,7 @@ namespace Reform.Interfaces
         string GetPagingSql(int limit, int offset);
         string QuoteIdentifier(string name);
         string ParameterPrefix { get; }
-        string EscapeLikeValue(string value);
+        string? EscapeLikeValue(string? value);
         string LikeEscapeClause { get; }
         string BooleanTrueLiteral { get; }
         string GetTruncateSql(string tableName);

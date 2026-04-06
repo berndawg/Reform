@@ -12,7 +12,7 @@ namespace Reform.Logic
         private readonly IConnectionProvider<T> _connectionProvider;
         private readonly IDataAccess<T> _dataAccess;
         private readonly IValidator<T> _validator;
-        private readonly IMetadataProvider<T> _metadataProvider;
+        private readonly IMetadataProvider<T>? _metadataProvider;
 
         public Reform(IConnectionProvider<T> connectionProvider, IDataAccess<T> dataAccess, IValidator<T> validator, IMetadataProvider<T> metadataProvider)
         {
@@ -26,7 +26,7 @@ namespace Reform.Logic
         /// Initializes a <see cref="Reform{T}"/> for derived types that supply their own persistence (for example a non-database store).
         /// Database-oriented APIs throw <see cref="InvalidOperationException"/> unless those methods are overridden.
         /// </summary>
-        protected Reform(IValidator<T> validator, IMetadataProvider<T> metadataProvider = null)
+        protected Reform(IValidator<T> validator, IMetadataProvider<T>? metadataProvider = null)
         {
             _connectionProvider = null!;
             _dataAccess = null!;
@@ -65,34 +65,26 @@ namespace Reform.Logic
 
         public virtual int Count()
         {
-            using (var connection = GetConnection())
-            {
-                return OnCount(connection, null);
-            }
+            using var connection = GetConnection();
+            return OnCount(connection, null);
         }
 
         public virtual int Count(Expression<Func<T, bool>> predicate)
         {
-            using (var connection = GetConnection())
-            {
-                return OnCount(connection, predicate);
-            }
+            using var connection = GetConnection();
+            return OnCount(connection, predicate);
         }
 
         public virtual async Task<int> CountAsync()
         {
-            await using (var connection = await GetOpenedConnectionAsync())
-            {
-                return await OnCountAsync(connection, null);
-            }
+            await using var connection = await GetOpenedConnectionAsync();
+            return await OnCountAsync(connection, null);
         }
 
         public virtual async Task<int> CountAsync(Expression<Func<T, bool>> predicate)
         {
-            await using (var connection = await GetOpenedConnectionAsync())
-            {
-                return await OnCountAsync(connection, predicate);
-            }
+            await using var connection = await GetOpenedConnectionAsync();
+            return await OnCountAsync(connection, predicate);
         }
 
         #endregion
@@ -101,18 +93,14 @@ namespace Reform.Logic
 
         public virtual bool Exists(Expression<Func<T, bool>> predicate)
         {
-            using (var connection = GetConnection())
-            {
-                return OnExists(connection, predicate);
-            }
+            using var connection = GetConnection();
+            return OnExists(connection, predicate);
         }
 
         public virtual async Task<bool> ExistsAsync(Expression<Func<T, bool>> predicate)
         {
-            await using (var connection = await GetOpenedConnectionAsync())
-            {
-                return await OnExistsAsync(connection, predicate);
-            }
+            await using var connection = await GetOpenedConnectionAsync();
+            return await OnExistsAsync(connection, predicate);
         }
 
         #endregion
@@ -121,49 +109,41 @@ namespace Reform.Logic
 
         public virtual void Insert(T item)
         {
-            using (var connection = GetConnection())
+            using var connection = GetConnection();
+            using var transaction = connection.BeginTransaction();
+            try
             {
-                using (var transaction = connection.BeginTransaction())
-                {
-                    try
-                    {
-                        InsertInternal(connection, transaction, item);
-                        transaction.Commit();
-                    }
-                    catch
-                    {
-                        transaction.Rollback();
-                        throw;
-                    }
-                }
+                InsertInternal(connection, transaction, item);
+                transaction.Commit();
+            }
+            catch
+            {
+                transaction.Rollback();
+                throw;
             }
         }
 
         public virtual void Insert(List<T> items)
         {
-            using (var connection = GetConnection())
+            using var connection = GetConnection();
+            using var transaction = connection.BeginTransaction();
+            try
             {
-                using (var transaction = connection.BeginTransaction())
-                {
-                    try
-                    {
-                        foreach (var item in items)
-                            InsertInternal(connection, transaction, item);
+                foreach (var item in items)
+                    InsertInternal(connection, transaction, item);
 
-                        transaction.Commit();
-                    }
-                    catch
-                    {
-                        transaction.Rollback();
-                        throw;
-                    }
-                }
+                transaction.Commit();
+            }
+            catch
+            {
+                transaction.Rollback();
+                throw;
             }
         }
 
         public void Insert(IDbConnection connection, T item)
         {
-            InsertInternal(connection, null, item);
+            InsertInternal(connection, null!, item);
         }
 
         public void Insert(IDbConnection connection, IDbTransaction transaction, T item)
@@ -173,43 +153,35 @@ namespace Reform.Logic
 
         public async Task InsertAsync(T item)
         {
-            await using (var connection = await GetOpenedConnectionAsync())
+            await using var connection = await GetOpenedConnectionAsync();
+            await using var transaction = await connection.BeginTransactionAsync();
+            try
             {
-                await using (var transaction = await connection.BeginTransactionAsync())
-                {
-                    try
-                    {
-                        await InsertInternalAsync(connection, transaction, item);
-                        await transaction.CommitAsync();
-                    }
-                    catch
-                    {
-                        await transaction.RollbackAsync();
-                        throw;
-                    }
-                }
+                await InsertInternalAsync(connection, transaction, item);
+                await transaction.CommitAsync();
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
             }
         }
 
         public async Task InsertAsync(List<T> items)
         {
-            await using (var connection = await GetOpenedConnectionAsync())
+            await using var connection = await GetOpenedConnectionAsync();
+            await using var transaction = await connection.BeginTransactionAsync();
+            try
             {
-                await using (var transaction = await connection.BeginTransactionAsync())
-                {
-                    try
-                    {
-                        foreach (var item in items)
-                            await InsertInternalAsync(connection, transaction, item);
+                foreach (var item in items)
+                    await InsertInternalAsync(connection, transaction, item);
 
-                        await transaction.CommitAsync();
-                    }
-                    catch
-                    {
-                        await transaction.RollbackAsync();
-                        throw;
-                    }
-                }
+                await transaction.CommitAsync();
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
             }
         }
 
@@ -240,49 +212,41 @@ namespace Reform.Logic
 
         public virtual void Update(T item)
         {
-            using (var connection = GetConnection())
+            using var connection = GetConnection();
+            using var transaction = connection.BeginTransaction();
+            try
             {
-                using (var transaction = connection.BeginTransaction())
-                {
-                    try
-                    {
-                        UpdateInternal(connection, transaction, item);
-                        transaction.Commit();
-                    }
-                    catch
-                    {
-                        transaction.Rollback();
-                        throw;
-                    }
-                }
+                UpdateInternal(connection, transaction, item);
+                transaction.Commit();
+            }
+            catch
+            {
+                transaction.Rollback();
+                throw;
             }
         }
 
         public virtual void Update(List<T> list)
         {
-            using (var connection = GetConnection())
+            using var connection = GetConnection();
+            using var transaction = connection.BeginTransaction();
+            try
             {
-                using (var transaction = connection.BeginTransaction())
-                {
-                    try
-                    {
-                        foreach (var item in list)
-                            UpdateInternal(connection, transaction, item);
+                foreach (var item in list)
+                    UpdateInternal(connection, transaction, item);
 
-                        transaction.Commit();
-                    }
-                    catch
-                    {
-                        transaction.Rollback();
-                        throw;
-                    }
-                }
+                transaction.Commit();
+            }
+            catch
+            {
+                transaction.Rollback();
+                throw;
             }
         }
 
         public void Update(IDbConnection connection, T item)
         {
-            UpdateInternal(connection, null, item);
+            UpdateInternal(connection, null!, item);
         }
 
         public void Update(IDbConnection connection, IDbTransaction transaction, T item)
@@ -292,43 +256,35 @@ namespace Reform.Logic
 
         public async Task UpdateAsync(T item)
         {
-            await using (var connection = await GetOpenedConnectionAsync())
+            await using var connection = await GetOpenedConnectionAsync();
+            await using var transaction = await connection.BeginTransactionAsync();
+            try
             {
-                await using (var transaction = await connection.BeginTransactionAsync())
-                {
-                    try
-                    {
-                        await UpdateInternalAsync(connection, transaction, item);
-                        await transaction.CommitAsync();
-                    }
-                    catch
-                    {
-                        await transaction.RollbackAsync();
-                        throw;
-                    }
-                }
+                await UpdateInternalAsync(connection, transaction, item);
+                await transaction.CommitAsync();
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
             }
         }
 
         public async Task UpdateAsync(List<T> list)
         {
-            await using (var connection = await GetOpenedConnectionAsync())
+            await using var connection = await GetOpenedConnectionAsync();
+            await using var transaction = await connection.BeginTransactionAsync();
+            try
             {
-                await using (var transaction = await connection.BeginTransactionAsync())
-                {
-                    try
-                    {
-                        foreach (var item in list)
-                            await UpdateInternalAsync(connection, transaction, item);
+                foreach (var item in list)
+                    await UpdateInternalAsync(connection, transaction, item);
 
-                        await transaction.CommitAsync();
-                    }
-                    catch
-                    {
-                        await transaction.RollbackAsync();
-                        throw;
-                    }
-                }
+                await transaction.CommitAsync();
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
             }
         }
 
@@ -359,49 +315,41 @@ namespace Reform.Logic
 
         public virtual void Delete(T item)
         {
-            using (var connection = GetConnection())
+            using var connection = GetConnection();
+            using var transaction = connection.BeginTransaction();
+            try
             {
-                using (var transaction = connection.BeginTransaction())
-                {
-                    try
-                    {
-                        DeleteInternal(connection, transaction, item);
-                        transaction.Commit();
-                    }
-                    catch
-                    {
-                        transaction.Rollback();
-                        throw;
-                    }
-                }
+                DeleteInternal(connection, transaction, item);
+                transaction.Commit();
+            }
+            catch
+            {
+                transaction.Rollback();
+                throw;
             }
         }
 
         public virtual void Delete(List<T> list)
         {
-            using (var connection = GetConnection())
+            using var connection = GetConnection();
+            using var transaction = connection.BeginTransaction();
+            try
             {
-                using (var transaction = connection.BeginTransaction())
-                {
-                    try
-                    {
-                        foreach (var item in list)
-                            DeleteInternal(connection, transaction, item);
+                foreach (var item in list)
+                    DeleteInternal(connection, transaction, item);
 
-                        transaction.Commit();
-                    }
-                    catch
-                    {
-                        transaction.Rollback();
-                        throw;
-                    }
-                }
+                transaction.Commit();
+            }
+            catch
+            {
+                transaction.Rollback();
+                throw;
             }
         }
 
         public void Delete(IDbConnection connection, T item)
         {
-            DeleteInternal(connection, null, item);
+            DeleteInternal(connection, null!, item);
         }
 
         public void Delete(IDbConnection connection, IDbTransaction transaction, T item)
@@ -411,43 +359,35 @@ namespace Reform.Logic
 
         public async Task DeleteAsync(T item)
         {
-            await using (var connection = await GetOpenedConnectionAsync())
+            await using var connection = await GetOpenedConnectionAsync();
+            await using var transaction = await connection.BeginTransactionAsync();
+            try
             {
-                await using (var transaction = await connection.BeginTransactionAsync())
-                {
-                    try
-                    {
-                        await DeleteInternalAsync(connection, transaction, item);
-                        await transaction.CommitAsync();
-                    }
-                    catch
-                    {
-                        await transaction.RollbackAsync();
-                        throw;
-                    }
-                }
+                await DeleteInternalAsync(connection, transaction, item);
+                await transaction.CommitAsync();
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
             }
         }
 
         public async Task DeleteAsync(List<T> list)
         {
-            await using (var connection = await GetOpenedConnectionAsync())
+            await using var connection = await GetOpenedConnectionAsync();
+            await using var transaction = await connection.BeginTransactionAsync();
+            try
             {
-                await using (var transaction = await connection.BeginTransactionAsync())
-                {
-                    try
-                    {
-                        foreach (var item in list)
-                            await DeleteInternalAsync(connection, transaction, item);
+                foreach (var item in list)
+                    await DeleteInternalAsync(connection, transaction, item);
 
-                        await transaction.CommitAsync();
-                    }
-                    catch
-                    {
-                        await transaction.RollbackAsync();
-                        throw;
-                    }
-                }
+                await transaction.CommitAsync();
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
             }
         }
 
@@ -476,41 +416,33 @@ namespace Reform.Logic
 
         public virtual void Merge(List<T> list)
         {
-            using (var connection = GetConnection())
+            using var connection = GetConnection();
+            using var transaction = connection.BeginTransaction();
+            try
             {
-                using (var transaction = connection.BeginTransaction())
-                {
-                    try
-                    {
-                        MergeInternal(connection, transaction, list);
-                        transaction.Commit();
-                    }
-                    catch
-                    {
-                        transaction.Rollback();
-                        throw;
-                    }
-                }
+                MergeInternal(connection, transaction, list);
+                transaction.Commit();
+            }
+            catch
+            {
+                transaction.Rollback();
+                throw;
             }
         }
 
         public virtual async Task MergeAsync(List<T> list)
         {
-            await using (var connection = await GetOpenedConnectionAsync())
+            await using var connection = await GetOpenedConnectionAsync();
+            await using var transaction = await connection.BeginTransactionAsync();
+            try
             {
-                await using (var transaction = await connection.BeginTransactionAsync())
-                {
-                    try
-                    {
-                        await MergeInternalAsync(connection, transaction, list);
-                        await transaction.CommitAsync();
-                    }
-                    catch
-                    {
-                        await transaction.RollbackAsync();
-                        throw;
-                    }
-                }
+                await MergeInternalAsync(connection, transaction, list);
+                await transaction.CommitAsync();
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
             }
         }
 
@@ -598,41 +530,33 @@ namespace Reform.Logic
 
         public virtual void Truncate()
         {
-            using (var connection = GetConnection())
+            using var connection = GetConnection();
+            using var transaction = connection.BeginTransaction();
+            try
             {
-                using (var transaction = connection.BeginTransaction())
-                {
-                    try
-                    {
-                        OnTruncate(connection, transaction);
-                        transaction.Commit();
-                    }
-                    catch
-                    {
-                        transaction.Rollback();
-                        throw;
-                    }
-                }
+                OnTruncate(connection, transaction);
+                transaction.Commit();
+            }
+            catch
+            {
+                transaction.Rollback();
+                throw;
             }
         }
 
         public virtual async Task TruncateAsync()
         {
-            await using (var connection = await GetOpenedConnectionAsync())
+            await using var connection = await GetOpenedConnectionAsync();
+            await using var transaction = await connection.BeginTransactionAsync();
+            try
             {
-                await using (var transaction = await connection.BeginTransactionAsync())
-                {
-                    try
-                    {
-                        await OnTruncateAsync(connection, transaction);
-                        await transaction.CommitAsync();
-                    }
-                    catch
-                    {
-                        await transaction.RollbackAsync();
-                        throw;
-                    }
-                }
+                await OnTruncateAsync(connection, transaction);
+                await transaction.CommitAsync();
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
             }
         }
 
@@ -640,14 +564,9 @@ namespace Reform.Logic
 
         private bool IsDefaultPrimaryKey(T item)
         {
-            var pkValue = _metadataProvider.GetPrimaryKeyValue(item);
-            if (pkValue == null) return true;
-
+            var pkValue = _metadataProvider!.GetPrimaryKeyValue(item);
             var pkType = _metadataProvider.PrimaryKeyPropertyType;
-            if (pkType.IsValueType)
-                return pkValue.Equals(Activator.CreateInstance(pkType));
-
-            return false;
+            return pkType.IsValueType && pkValue.Equals(Activator.CreateInstance(pkType));
         }
 
         #region SelectSingle
@@ -669,7 +588,7 @@ namespace Reform.Logic
             if (list.Count > 1)
                 throw new InvalidOperationException($"Expected to find 1 or 0 {typeof(T).Name} but found {list.Count}.");
 
-            return list.FirstOrDefault();
+            return list.FirstOrDefault()!;
         }
 
         public async Task<T> SelectSingleAsync(Expression<Func<T, bool>> predicate)
@@ -689,7 +608,7 @@ namespace Reform.Logic
             if (list.Count > 1)
                 throw new InvalidOperationException($"Expected to find 1 or 0 {typeof(T).Name} but found {list.Count}.");
 
-            return list.FirstOrDefault();
+            return list.FirstOrDefault()!;
         }
 
         #endregion
@@ -708,10 +627,8 @@ namespace Reform.Logic
 
         public virtual IEnumerable<T> Select(QueryCriteria<T> queryCriteria)
         {
-            using (var connection = GetConnection())
-            {
-                return OnSelect(connection, queryCriteria);
-            }
+            using var connection = GetConnection();
+            return OnSelect(connection, queryCriteria);
         }
 
         public Task<IEnumerable<T>> SelectAsync()
@@ -726,10 +643,8 @@ namespace Reform.Logic
 
         public async Task<IEnumerable<T>> SelectAsync(QueryCriteria<T> queryCriteria)
         {
-            await using (var connection = await GetOpenedConnectionAsync())
-            {
-                return await OnSelectAsync(connection, queryCriteria);
-            }
+            await using var connection = await GetOpenedConnectionAsync();
+            return await OnSelectAsync(connection, queryCriteria);
         }
 
         #endregion
@@ -747,13 +662,13 @@ namespace Reform.Logic
             _validator.Validate(item);
         }
 
-        protected virtual int OnCount(IDbConnection connection, Expression<Func<T, bool>> predicate)
+        protected virtual int OnCount(IDbConnection connection, Expression<Func<T, bool>>? predicate)
         {
             EnsureDataLayer();
             return _dataAccess.Count(connection, null, predicate);
         }
 
-        protected virtual Task<int> OnCountAsync(IDbConnection connection, Expression<Func<T, bool>> predicate)
+        protected virtual Task<int> OnCountAsync(IDbConnection connection, Expression<Func<T, bool>>? predicate)
         {
             EnsureDataLayer();
             return _dataAccess.CountAsync(connection, null, predicate);
