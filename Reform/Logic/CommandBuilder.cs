@@ -18,13 +18,13 @@ namespace Reform.Logic
             _dialect = dialect;
         }
 
-        public IDbCommand GetCountCommand(IDbConnection connection, Expression<Func<T, bool>> predicate)
+        public IDbCommand GetCountCommand(IDbConnection connection, Expression<Func<T, bool>>? predicate)
         {
             var commandText = _sqlBuilder.GetCountSql(predicate, out var parameters);
             return GetCommand(connection, commandText, parameters);
         }
 
-        public IDbCommand GetExistsCommand(IDbConnection connection, Expression<Func<T, bool>> predicate)
+        public IDbCommand GetExistsCommand(IDbConnection connection, Expression<Func<T, bool>>? predicate)
         {
             var commandText = _sqlBuilder.GetExistsSql(predicate, out var parameters);
             return GetCommand(connection, commandText, parameters);

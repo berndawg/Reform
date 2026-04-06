@@ -9,8 +9,8 @@ namespace Reform.Logic
     {
         private readonly IMetadataProvider<T> _metadataProvider;
         private readonly IDialect _dialect;
-        private StringBuilder _sql;
-        private Dictionary<string, object> _parameters;
+        private StringBuilder _sql = new();
+        private Dictionary<string, object> _parameters = new();
         private int _parameterIndex;
 
         public WhereClauseBuilder(IMetadataProvider<T> metadataProvider, IDialect dialect)
@@ -19,7 +19,7 @@ namespace Reform.Logic
             _dialect = dialect;
         }
 
-        public (string sql, Dictionary<string, object> parameters) Build(Expression<Func<T, bool>> predicate, int startingIndex = 0)
+        public (string sql, Dictionary<string, object> parameters) Build(Expression<Func<T, bool>>? predicate, int startingIndex = 0)
         {
             _sql = new StringBuilder();
             _parameters = new Dictionary<string, object>();
@@ -63,7 +63,7 @@ namespace Reform.Logic
             _sql.Append(GetOperator(node.NodeType));
 
             var value = GetValue(node.Right);
-            var paramName = AddParameter(value);
+            var paramName = AddParameter(value!);
             _sql.Append($"@{paramName}");
 
             return node;
@@ -95,22 +95,22 @@ namespace Reform.Logic
                 switch (node.Method.Name)
                 {
                     case "Contains":
-                        VisitMemberForColumn(node.Object);
-                        var containsValue = _dialect.EscapeLikeValue(GetValue(node.Arguments[0])?.ToString());
+                        VisitMemberForColumn(node.Object!);
+                        var containsValue = _dialect.EscapeLikeValue(GetValue(node.Arguments[0])?.ToString()!);
                         var containsParam = AddParameter($"%{containsValue}%");
                         _sql.Append($" LIKE @{containsParam}{_dialect.LikeEscapeClause}");
                         return node;
 
                     case "StartsWith":
-                        VisitMemberForColumn(node.Object);
-                        var startsValue = _dialect.EscapeLikeValue(GetValue(node.Arguments[0])?.ToString());
+                        VisitMemberForColumn(node.Object!);
+                        var startsValue = _dialect.EscapeLikeValue(GetValue(node.Arguments[0])?.ToString()!);
                         var startsParam = AddParameter($"{startsValue}%");
                         _sql.Append($" LIKE @{startsParam}{_dialect.LikeEscapeClause}");
                         return node;
 
                     case "EndsWith":
-                        VisitMemberForColumn(node.Object);
-                        var endsValue = _dialect.EscapeLikeValue(GetValue(node.Arguments[0])?.ToString());
+                        VisitMemberForColumn(node.Object!);
+                        var endsValue = _dialect.EscapeLikeValue(GetValue(node.Arguments[0])?.ToString()!);
                         var endsParam = AddParameter($"%{endsValue}");
                         _sql.Append($" LIKE @{endsParam}{_dialect.LikeEscapeClause}");
                         return node;
@@ -154,7 +154,7 @@ namespace Reform.Logic
             throw new NotSupportedException($"Expression type '{expression.NodeType}' is not supported for column access");
         }
 
-        private object GetValue(Expression expression)
+        private object? GetValue(Expression expression)
         {
             if (expression is ConstantExpression constant)
                 return constant.Value;

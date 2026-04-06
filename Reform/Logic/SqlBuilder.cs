@@ -21,7 +21,7 @@ namespace Reform.Logic
             _whereClauseBuilder = new WhereClauseBuilder<T>(metadataProvider, dialect);
         }
 
-        public string GetCountSql(Expression<Func<T, bool>> predicate, out Dictionary<string, object> parameters)
+        public string GetCountSql(Expression<Func<T, bool>>? predicate, out Dictionary<string, object> parameters)
         {
             var (whereClause, whereParams) = BuildWhereClause(predicate);
             parameters = whereParams;
@@ -32,7 +32,7 @@ namespace Reform.Logic
             return $"SELECT COUNT(1){fromClause}{where}";
         }
 
-        public string GetExistsSql(Expression<Func<T, bool>> predicate, out Dictionary<string, object> parameters)
+        public string GetExistsSql(Expression<Func<T, bool>>? predicate, out Dictionary<string, object> parameters)
         {
             var (whereClause, whereParams) = BuildWhereClause(predicate);
             parameters = whereParams;
@@ -49,7 +49,7 @@ namespace Reform.Logic
             var doPaging = pageCriteria != null && pageCriteria.PageSize != 0 && pageCriteria.Page != 0;
 
             return doPaging
-                ? GetSelectSqlPaged(pageCriteria, ref parameters, queryCriteria)
+                ? GetSelectSqlPaged(pageCriteria!, ref parameters, queryCriteria)
                 : GetSelectSqlNonPaged(ref parameters, queryCriteria);
         }
 
@@ -99,7 +99,7 @@ namespace Reform.Logic
             return _dialect.GetTruncateSql(GetTableName());
         }
 
-        private (string sql, Dictionary<string, object> parameters) BuildWhereClause(Expression<Func<T, bool>> predicate, int startingIndex = 0)
+        private (string sql, Dictionary<string, object> parameters) BuildWhereClause(Expression<Func<T, bool>>? predicate, int startingIndex = 0)
         {
             return _whereClauseBuilder.Build(predicate, startingIndex);
         }

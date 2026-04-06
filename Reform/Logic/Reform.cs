@@ -12,7 +12,7 @@ namespace Reform.Logic
         private readonly IConnectionProvider<T> _connectionProvider;
         private readonly IDataAccess<T> _dataAccess;
         private readonly IValidator<T> _validator;
-        private readonly IMetadataProvider<T> _metadataProvider;
+        private readonly IMetadataProvider<T>? _metadataProvider;
 
         public Reform(IConnectionProvider<T> connectionProvider, IDataAccess<T> dataAccess, IValidator<T> validator, IMetadataProvider<T> metadataProvider)
         {
@@ -26,7 +26,7 @@ namespace Reform.Logic
         /// Initializes a <see cref="Reform{T}"/> for derived types that supply their own persistence (for example a non-database store).
         /// Database-oriented APIs throw <see cref="InvalidOperationException"/> unless those methods are overridden.
         /// </summary>
-        protected Reform(IValidator<T> validator, IMetadataProvider<T> metadataProvider = null)
+        protected Reform(IValidator<T> validator, IMetadataProvider<T>? metadataProvider = null)
         {
             _connectionProvider = null!;
             _dataAccess = null!;
@@ -163,7 +163,7 @@ namespace Reform.Logic
 
         public void Insert(IDbConnection connection, T item)
         {
-            InsertInternal(connection, null, item);
+            InsertInternal(connection, null!, item);
         }
 
         public void Insert(IDbConnection connection, IDbTransaction transaction, T item)
@@ -282,7 +282,7 @@ namespace Reform.Logic
 
         public void Update(IDbConnection connection, T item)
         {
-            UpdateInternal(connection, null, item);
+            UpdateInternal(connection, null!, item);
         }
 
         public void Update(IDbConnection connection, IDbTransaction transaction, T item)
@@ -401,7 +401,7 @@ namespace Reform.Logic
 
         public void Delete(IDbConnection connection, T item)
         {
-            DeleteInternal(connection, null, item);
+            DeleteInternal(connection, null!, item);
         }
 
         public void Delete(IDbConnection connection, IDbTransaction transaction, T item)
@@ -640,7 +640,7 @@ namespace Reform.Logic
 
         private bool IsDefaultPrimaryKey(T item)
         {
-            var pkValue = _metadataProvider.GetPrimaryKeyValue(item);
+            var pkValue = _metadataProvider!.GetPrimaryKeyValue(item);
             if (pkValue == null) return true;
 
             var pkType = _metadataProvider.PrimaryKeyPropertyType;
@@ -669,7 +669,7 @@ namespace Reform.Logic
             if (list.Count > 1)
                 throw new InvalidOperationException($"Expected to find 1 or 0 {typeof(T).Name} but found {list.Count}.");
 
-            return list.FirstOrDefault();
+            return list.FirstOrDefault()!;
         }
 
         public async Task<T> SelectSingleAsync(Expression<Func<T, bool>> predicate)
@@ -689,7 +689,7 @@ namespace Reform.Logic
             if (list.Count > 1)
                 throw new InvalidOperationException($"Expected to find 1 or 0 {typeof(T).Name} but found {list.Count}.");
 
-            return list.FirstOrDefault();
+            return list.FirstOrDefault()!;
         }
 
         #endregion
@@ -747,13 +747,13 @@ namespace Reform.Logic
             _validator.Validate(item);
         }
 
-        protected virtual int OnCount(IDbConnection connection, Expression<Func<T, bool>> predicate)
+        protected virtual int OnCount(IDbConnection connection, Expression<Func<T, bool>>? predicate)
         {
             EnsureDataLayer();
             return _dataAccess.Count(connection, null, predicate);
         }
 
-        protected virtual Task<int> OnCountAsync(IDbConnection connection, Expression<Func<T, bool>> predicate)
+        protected virtual Task<int> OnCountAsync(IDbConnection connection, Expression<Func<T, bool>>? predicate)
         {
             EnsureDataLayer();
             return _dataAccess.CountAsync(connection, null, predicate);
