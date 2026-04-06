@@ -59,12 +59,12 @@ namespace Reform.Logic
 
         public PropertyMap GetPropertyMapByPropertyName(string propertyName)
         {
-            return _propertyMapLookupByPropertyName.TryGetValue(propertyName, out var map) ? map : null;
+        return _propertyMapLookupByPropertyName.ContainsKey(propertyName) ? _propertyMapLookupByPropertyName[propertyName] : null;
         }
 
         public PropertyMap GetPropertyMapByColumnName(string columnName)
         {
-            return _propertyMapLookupByColumnName.TryGetValue(columnName, out var map) ? map : null;
+        return _propertyMapLookupByColumnName.ContainsKey(columnName) ? _propertyMapLookupByColumnName[columnName] : null;
         }
 
         public object GetPrimaryKeyValue(T instance)
