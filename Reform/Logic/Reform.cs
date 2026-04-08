@@ -23,7 +23,7 @@ namespace Reform.Logic
         }
 
         /// <summary>
-        /// Initializes a <see cref="Reform{T}"/> for derived types that supply their own persistence (for example a non-database store).
+        /// Initializes a <see cref="Reform{T}"/> for derived types that supply their own persistence (for example, a non-database store).
         /// Database-oriented APIs throw <see cref="InvalidOperationException"/> unless those methods are overridden.
         /// </summary>
         protected Reform(IValidator<T> validator, IMetadataProvider<T>? metadataProvider = null)
