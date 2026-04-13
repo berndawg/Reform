@@ -4,7 +4,9 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using Reform;
+using Reform.Enum;
 using Reform.Interfaces;
+using Reform.Objects;
 using ReformTests.Objects;
 using Xunit;
 
@@ -548,6 +550,475 @@ namespace ReformTests
             await countryLogic.TruncateAsync();
 
             Assert.Equal(0, await countryLogic.CountAsync());
+        }
+
+        #endregion
+
+        #region Complex Predicate Tests
+
+        [Fact]
+        public void Select_With_NotEqual()
+        {
+            IReform<Airport> airportLogic = _reformer.For<Airport>();
+
+            airportLogic.Insert(new Airport { AirportCode = "AAA", AirportName = "Alpha", CountryId = 500 });
+            airportLogic.Insert(new Airport { AirportCode = "BBB", AirportName = "Bravo", CountryId = 500 });
+            airportLogic.Insert(new Airport { AirportCode = "CCC", AirportName = "Charlie", CountryId = 500 });
+
+            var result = airportLogic.Select(x => x.CountryId == 500 && x.AirportCode != "BBB").ToList();
+            Assert.Equal(2, result.Count);
+            Assert.DoesNotContain(result, a => a.AirportCode == "BBB");
+        }
+
+        [Fact]
+        public void Select_With_GreaterThan()
+        {
+            IReform<Country> countryLogic = _reformer.For<Country>();
+
+            countryLogic.Insert(new Country { CountryName = "GT_A" });
+            countryLogic.Insert(new Country { CountryName = "GT_B" });
+            countryLogic.Insert(new Country { CountryName = "GT_C" });
+
+            var all = countryLogic.Select(x => x.CountryName == "GT_A"
+                                             || x.CountryName == "GT_B"
+                                             || x.CountryName == "GT_C").ToList();
+            int midId = all.OrderBy(c => c.CountryId).ElementAt(1).CountryId;
+
+            var result = countryLogic.Select(x => x.CountryId > midId).ToList();
+            Assert.All(result, c => Assert.True(c.CountryId > midId));
+        }
+
+        [Fact]
+        public void Select_With_LessThan()
+        {
+            IReform<Country> countryLogic = _reformer.For<Country>();
+
+            countryLogic.Insert(new Country { CountryName = "LT_A" });
+            countryLogic.Insert(new Country { CountryName = "LT_B" });
+            countryLogic.Insert(new Country { CountryName = "LT_C" });
+
+            var all = countryLogic.Select(x => x.CountryName == "LT_A"
+                                             || x.CountryName == "LT_B"
+                                             || x.CountryName == "LT_C").ToList();
+            int maxId = all.Max(c => c.CountryId);
+
+            var result = countryLogic.Select(x => x.CountryId < maxId
+                                                && (x.CountryName == "LT_A"
+                                                 || x.CountryName == "LT_B"
+                                                 || x.CountryName == "LT_C")).ToList();
+            Assert.Equal(2, result.Count);
+            Assert.All(result, c => Assert.True(c.CountryId < maxId));
+        }
+
+        [Fact]
+        public void Select_With_GreaterThanOrEqual()
+        {
+            IReform<Country> countryLogic = _reformer.For<Country>();
+
+            countryLogic.Insert(new Country { CountryName = "GTE_A" });
+            countryLogic.Insert(new Country { CountryName = "GTE_B" });
+
+            var all = countryLogic.Select(x => x.CountryName == "GTE_A"
+                                             || x.CountryName == "GTE_B").ToList();
+            int minId = all.Min(c => c.CountryId);
+
+            var result = countryLogic.Select(x => x.CountryId >= minId
+                                                && (x.CountryName == "GTE_A"
+                                                 || x.CountryName == "GTE_B")).ToList();
+            Assert.Equal(2, result.Count);
+        }
+
+        [Fact]
+        public void Select_With_LessThanOrEqual()
+        {
+            IReform<Country> countryLogic = _reformer.For<Country>();
+
+            countryLogic.Insert(new Country { CountryName = "LTE_A" });
+            countryLogic.Insert(new Country { CountryName = "LTE_B" });
+
+            var all = countryLogic.Select(x => x.CountryName == "LTE_A"
+                                             || x.CountryName == "LTE_B").ToList();
+            int maxId = all.Max(c => c.CountryId);
+
+            var result = countryLogic.Select(x => x.CountryId <= maxId
+                                                && (x.CountryName == "LTE_A"
+                                                 || x.CountryName == "LTE_B")).ToList();
+            Assert.Equal(2, result.Count);
+        }
+
+        [Fact]
+        public void Select_With_Contains()
+        {
+            IReform<Airport> airportLogic = _reformer.For<Airport>();
+
+            airportLogic.Insert(new Airport { AirportCode = "CTN", AirportName = "San Francisco International", CountryId = 501 });
+            airportLogic.Insert(new Airport { AirportCode = "CT2", AirportName = "San Diego", CountryId = 501 });
+            airportLogic.Insert(new Airport { AirportCode = "CT3", AirportName = "Chicago OHare", CountryId = 501 });
+
+            var result = airportLogic.Select(x => x.CountryId == 501 && x.AirportName.Contains("San")).ToList();
+            Assert.Equal(2, result.Count);
+            Assert.All(result, a => Assert.Contains("San", a.AirportName));
+        }
+
+        [Fact]
+        public void Select_With_StartsWith()
+        {
+            IReform<Airport> airportLogic = _reformer.For<Airport>();
+
+            airportLogic.Insert(new Airport { AirportCode = "SW1", AirportName = "New York JFK", CountryId = 502 });
+            airportLogic.Insert(new Airport { AirportCode = "SW2", AirportName = "New Orleans", CountryId = 502 });
+            airportLogic.Insert(new Airport { AirportCode = "SW3", AirportName = "Los Angeles", CountryId = 502 });
+
+            var result = airportLogic.Select(x => x.CountryId == 502 && x.AirportName.StartsWith("New")).ToList();
+            Assert.Equal(2, result.Count);
+            Assert.All(result, a => Assert.StartsWith("New", a.AirportName));
+        }
+
+        [Fact]
+        public void Select_With_EndsWith()
+        {
+            IReform<Airport> airportLogic = _reformer.For<Airport>();
+
+            airportLogic.Insert(new Airport { AirportCode = "EW1", AirportName = "Portland International", CountryId = 503 });
+            airportLogic.Insert(new Airport { AirportCode = "EW2", AirportName = "San Francisco International", CountryId = 503 });
+            airportLogic.Insert(new Airport { AirportCode = "EW3", AirportName = "Dallas Fort Worth", CountryId = 503 });
+
+            var result = airportLogic.Select(x => x.CountryId == 503 && x.AirportName.EndsWith("International")).ToList();
+            Assert.Equal(2, result.Count);
+            Assert.All(result, a => Assert.EndsWith("International", a.AirportName));
+        }
+
+        [Fact]
+        public void Count_With_NotEqual_Predicate()
+        {
+            IReform<Airport> airportLogic = _reformer.For<Airport>();
+
+            airportLogic.Insert(new Airport { AirportCode = "CN1", AirportName = "One", CountryId = 504 });
+            airportLogic.Insert(new Airport { AirportCode = "CN2", AirportName = "Two", CountryId = 504 });
+            airportLogic.Insert(new Airport { AirportCode = "CN3", AirportName = "Three", CountryId = 504 });
+
+            Assert.Equal(2, airportLogic.Count(x => x.CountryId == 504 && x.AirportCode != "CN1"));
+        }
+
+        [Fact]
+        public void Exists_With_GreaterThan_Predicate()
+        {
+            IReform<Country> countryLogic = _reformer.For<Country>();
+
+            countryLogic.Insert(new Country { CountryName = "EGT_A" });
+            var country = countryLogic.SelectSingle(x => x.CountryName == "EGT_A");
+
+            Assert.True(countryLogic.Exists(x => x.CountryId >= country.CountryId && x.CountryName == "EGT_A"));
+            Assert.False(countryLogic.Exists(x => x.CountryId > country.CountryId && x.CountryName == "EGT_A"));
+        }
+
+        [Fact]
+        public void Select_With_Contains_Variable()
+        {
+            IReform<Airport> airportLogic = _reformer.For<Airport>();
+
+            airportLogic.Insert(new Airport { AirportCode = "CV1", AirportName = "Tokyo Narita", CountryId = 505 });
+            airportLogic.Insert(new Airport { AirportCode = "CV2", AirportName = "Tokyo Haneda", CountryId = 505 });
+            airportLogic.Insert(new Airport { AirportCode = "CV3", AirportName = "Osaka Kansai", CountryId = 505 });
+
+            string searchTerm = "Tokyo";
+            var result = airportLogic.Select(x => x.CountryId == 505 && x.AirportName.Contains(searchTerm)).ToList();
+            Assert.Equal(2, result.Count);
+        }
+
+        [Fact]
+        public void Select_With_Combined_Comparison_Operators()
+        {
+            IReform<Airport> airportLogic = _reformer.For<Airport>();
+
+            airportLogic.Insert(new Airport { AirportCode = "CC1", AirportName = "Test1", CountryId = 506 });
+            airportLogic.Insert(new Airport { AirportCode = "CC2", AirportName = "Test2", CountryId = 507 });
+            airportLogic.Insert(new Airport { AirportCode = "CC3", AirportName = "Test3", CountryId = 508 });
+
+            var result = airportLogic.Select(x => x.CountryId >= 506 && x.CountryId <= 507).ToList();
+            Assert.Equal(2, result.Count);
+            Assert.Contains(result, a => a.AirportCode == "CC1");
+            Assert.Contains(result, a => a.AirportCode == "CC2");
+        }
+
+        #endregion
+
+        #region Sorting and Pagination Tests
+
+        [Fact]
+        public void Select_With_Sort_Ascending()
+        {
+            IReform<Airport> airportLogic = _reformer.For<Airport>();
+
+            airportLogic.Insert(new Airport { AirportCode = "SA3", AirportName = "Charlie", CountryId = 600 });
+            airportLogic.Insert(new Airport { AirportCode = "SA1", AirportName = "Alpha", CountryId = 600 });
+            airportLogic.Insert(new Airport { AirportCode = "SA2", AirportName = "Bravo", CountryId = 600 });
+
+            var criteria = new QueryCriteria<Airport>
+            {
+                Predicate = x => x.CountryId == 600,
+                SortCriteria = new SortCriteria
+                {
+                    SortCriterion.Ascending("AirportName")
+                }
+            };
+
+            var result = airportLogic.Select(criteria).ToList();
+            Assert.Equal(3, result.Count);
+            Assert.Equal("Alpha", result[0].AirportName);
+            Assert.Equal("Bravo", result[1].AirportName);
+            Assert.Equal("Charlie", result[2].AirportName);
+        }
+
+        [Fact]
+        public void Select_With_Sort_Descending()
+        {
+            IReform<Airport> airportLogic = _reformer.For<Airport>();
+
+            airportLogic.Insert(new Airport { AirportCode = "SD1", AirportName = "Alpha", CountryId = 601 });
+            airportLogic.Insert(new Airport { AirportCode = "SD2", AirportName = "Bravo", CountryId = 601 });
+            airportLogic.Insert(new Airport { AirportCode = "SD3", AirportName = "Charlie", CountryId = 601 });
+
+            var criteria = new QueryCriteria<Airport>
+            {
+                Predicate = x => x.CountryId == 601,
+                SortCriteria = new SortCriteria
+                {
+                    new SortCriterion("AirportName", SortDirection.Descending)
+                }
+            };
+
+            var result = airportLogic.Select(criteria).ToList();
+            Assert.Equal(3, result.Count);
+            Assert.Equal("Charlie", result[0].AirportName);
+            Assert.Equal("Bravo", result[1].AirportName);
+            Assert.Equal("Alpha", result[2].AirportName);
+        }
+
+        [Fact]
+        public void Select_With_Multiple_Sort_Criteria()
+        {
+            IReform<Airport> airportLogic = _reformer.For<Airport>();
+
+            airportLogic.Insert(new Airport { AirportCode = "MS1", AirportName = "Alpha", CountryId = 602 });
+            airportLogic.Insert(new Airport { AirportCode = "MS3", AirportName = "Bravo", CountryId = 603 });
+            airportLogic.Insert(new Airport { AirportCode = "MS2", AirportName = "Alpha", CountryId = 603 });
+
+            var criteria = new QueryCriteria<Airport>
+            {
+                Predicate = x => x.CountryId == 602 || x.CountryId == 603,
+                SortCriteria = new SortCriteria
+                {
+                    SortCriterion.Ascending("AirportName"),
+                    new SortCriterion("AirportCode", SortDirection.Descending)
+                }
+            };
+
+            var result = airportLogic.Select(criteria).ToList();
+            Assert.Equal(3, result.Count);
+            Assert.Equal("MS2", result[0].AirportCode); // Alpha, MS2 (desc by code)
+            Assert.Equal("MS1", result[1].AirportCode); // Alpha, MS1
+            Assert.Equal("MS3", result[2].AirportCode); // Bravo
+        }
+
+        [Fact]
+        public void Select_With_Sort_No_Predicate()
+        {
+            IReform<Country> countryLogic = _reformer.For<Country>();
+
+            countryLogic.Insert(new Country { CountryName = "Zambia" });
+            countryLogic.Insert(new Country { CountryName = "Albania" });
+            countryLogic.Insert(new Country { CountryName = "Morocco" });
+
+            var criteria = new QueryCriteria<Country>
+            {
+                SortCriteria = new SortCriteria
+                {
+                    SortCriterion.Ascending("CountryName")
+                }
+            };
+
+            var result = countryLogic.Select(criteria).ToList();
+            Assert.True(result.Count >= 3);
+            // Verify ordering: each name should be <= the next
+            for (int i = 0; i < result.Count - 1; i++)
+            {
+                Assert.True(string.Compare(result[i].CountryName, result[i + 1].CountryName, StringComparison.Ordinal) <= 0);
+            }
+        }
+
+        [Fact]
+        public void Select_With_Pagination()
+        {
+            IReform<Airport> airportLogic = _reformer.For<Airport>();
+
+            airportLogic.Insert(new Airport { AirportCode = "PG1", AirportName = "Page Alpha", CountryId = 700 });
+            airportLogic.Insert(new Airport { AirportCode = "PG2", AirportName = "Page Bravo", CountryId = 700 });
+            airportLogic.Insert(new Airport { AirportCode = "PG3", AirportName = "Page Charlie", CountryId = 700 });
+            airportLogic.Insert(new Airport { AirportCode = "PG4", AirportName = "Page Delta", CountryId = 700 });
+            airportLogic.Insert(new Airport { AirportCode = "PG5", AirportName = "Page Echo", CountryId = 700 });
+
+            var page1 = new QueryCriteria<Airport>
+            {
+                Predicate = x => x.CountryId == 700,
+                SortCriteria = new SortCriteria { SortCriterion.Ascending("AirportName") },
+                PageCriteria = new PageCriteria(1, 2)
+            };
+
+            var result1 = airportLogic.Select(page1).ToList();
+            Assert.Equal(2, result1.Count);
+            Assert.Equal("Page Alpha", result1[0].AirportName);
+            Assert.Equal("Page Bravo", result1[1].AirportName);
+
+            var page2 = new QueryCriteria<Airport>
+            {
+                Predicate = x => x.CountryId == 700,
+                SortCriteria = new SortCriteria { SortCriterion.Ascending("AirportName") },
+                PageCriteria = new PageCriteria(2, 2)
+            };
+
+            var result2 = airportLogic.Select(page2).ToList();
+            Assert.Equal(2, result2.Count);
+            Assert.Equal("Page Charlie", result2[0].AirportName);
+            Assert.Equal("Page Delta", result2[1].AirportName);
+
+            var page3 = new QueryCriteria<Airport>
+            {
+                Predicate = x => x.CountryId == 700,
+                SortCriteria = new SortCriteria { SortCriterion.Ascending("AirportName") },
+                PageCriteria = new PageCriteria(3, 2)
+            };
+
+            var result3 = airportLogic.Select(page3).ToList();
+            Assert.Single(result3);
+            Assert.Equal("Page Echo", result3[0].AirportName);
+        }
+
+        [Fact]
+        public void Select_Paged_Beyond_Data_Returns_Empty()
+        {
+            IReform<Airport> airportLogic = _reformer.For<Airport>();
+
+            airportLogic.Insert(new Airport { AirportCode = "PE1", AirportName = "Only One", CountryId = 701 });
+
+            var criteria = new QueryCriteria<Airport>
+            {
+                Predicate = x => x.CountryId == 701,
+                SortCriteria = new SortCriteria { SortCriterion.Ascending("AirportName") },
+                PageCriteria = new PageCriteria(2, 10)
+            };
+
+            var result = airportLogic.Select(criteria).ToList();
+            Assert.Empty(result);
+        }
+
+        [Fact]
+        public void Select_Paged_Without_Sort_Uses_PrimaryKey()
+        {
+            IReform<Airport> airportLogic = _reformer.For<Airport>();
+
+            airportLogic.Insert(new Airport { AirportCode = "NS1", AirportName = "NoSort Alpha", CountryId = 710 });
+            airportLogic.Insert(new Airport { AirportCode = "NS2", AirportName = "NoSort Bravo", CountryId = 710 });
+            airportLogic.Insert(new Airport { AirportCode = "NS3", AirportName = "NoSort Charlie", CountryId = 710 });
+
+            var criteria = new QueryCriteria<Airport>
+            {
+                Predicate = x => x.CountryId == 710,
+                PageCriteria = new PageCriteria(1, 2)
+            };
+
+            // Should succeed — CommandBuilder adds PK sort automatically
+            var result = airportLogic.Select(criteria).ToList();
+            Assert.Equal(2, result.Count);
+        }
+
+        [Fact]
+        public void Select_With_Pagination_Descending()
+        {
+            IReform<Airport> airportLogic = _reformer.For<Airport>();
+
+            airportLogic.Insert(new Airport { AirportCode = "PD1", AirportName = "Alpha", CountryId = 702 });
+            airportLogic.Insert(new Airport { AirportCode = "PD2", AirportName = "Bravo", CountryId = 702 });
+            airportLogic.Insert(new Airport { AirportCode = "PD3", AirportName = "Charlie", CountryId = 702 });
+            airportLogic.Insert(new Airport { AirportCode = "PD4", AirportName = "Delta", CountryId = 702 });
+
+            var criteria = new QueryCriteria<Airport>
+            {
+                Predicate = x => x.CountryId == 702,
+                SortCriteria = new SortCriteria
+                {
+                    new SortCriterion("AirportName", SortDirection.Descending)
+                },
+                PageCriteria = new PageCriteria(1, 2)
+            };
+
+            var result = airportLogic.Select(criteria).ToList();
+            Assert.Equal(2, result.Count);
+            Assert.Equal("Delta", result[0].AirportName);
+            Assert.Equal("Charlie", result[1].AirportName);
+        }
+
+        [Fact]
+        public void Select_Sort_By_Invalid_Property_Throws()
+        {
+            IReform<Airport> airportLogic = _reformer.For<Airport>();
+
+            var criteria = new QueryCriteria<Airport>
+            {
+                SortCriteria = new SortCriteria
+                {
+                    SortCriterion.Ascending("NonExistentProperty")
+                }
+            };
+
+            Assert.Throws<InvalidOperationException>(() => airportLogic.Select(criteria).ToList());
+        }
+
+        [Fact]
+        public async Task Select_With_Sort_Async()
+        {
+            IReform<Airport> airportLogic = _reformer.For<Airport>();
+
+            await airportLogic.InsertAsync(new Airport { AirportCode = "AS3", AirportName = "Charlie", CountryId = 800 });
+            await airportLogic.InsertAsync(new Airport { AirportCode = "AS1", AirportName = "Alpha", CountryId = 800 });
+            await airportLogic.InsertAsync(new Airport { AirportCode = "AS2", AirportName = "Bravo", CountryId = 800 });
+
+            var criteria = new QueryCriteria<Airport>
+            {
+                Predicate = x => x.CountryId == 800,
+                SortCriteria = new SortCriteria
+                {
+                    SortCriterion.Ascending("AirportCode")
+                }
+            };
+
+            var result = (await airportLogic.SelectAsync(criteria)).ToList();
+            Assert.Equal(3, result.Count);
+            Assert.Equal("AS1", result[0].AirportCode);
+            Assert.Equal("AS2", result[1].AirportCode);
+            Assert.Equal("AS3", result[2].AirportCode);
+        }
+
+        [Fact]
+        public async Task Select_With_Pagination_Async()
+        {
+            IReform<Airport> airportLogic = _reformer.For<Airport>();
+
+            await airportLogic.InsertAsync(new Airport { AirportCode = "AP1", AirportName = "Alpha", CountryId = 801 });
+            await airportLogic.InsertAsync(new Airport { AirportCode = "AP2", AirportName = "Bravo", CountryId = 801 });
+            await airportLogic.InsertAsync(new Airport { AirportCode = "AP3", AirportName = "Charlie", CountryId = 801 });
+
+            var criteria = new QueryCriteria<Airport>
+            {
+                Predicate = x => x.CountryId == 801,
+                SortCriteria = new SortCriteria { SortCriterion.Ascending("AirportName") },
+                PageCriteria = new PageCriteria(1, 2)
+            };
+
+            var result = (await airportLogic.SelectAsync(criteria)).ToList();
+            Assert.Equal(2, result.Count);
+            Assert.Equal("Alpha", result[0].AirportName);
+            Assert.Equal("Bravo", result[1].AirportName);
         }
 
         #endregion
