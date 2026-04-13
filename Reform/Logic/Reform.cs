@@ -143,7 +143,7 @@ namespace Reform.Logic
 
         public void Insert(IDbConnection connection, T item)
         {
-            InsertInternal(connection, null!, item);
+            InsertInternal(connection, null, item);
         }
 
         public void Insert(IDbConnection connection, IDbTransaction transaction, T item)
@@ -190,7 +190,7 @@ namespace Reform.Logic
             await InsertInternalAsync(connection, transaction, item);
         }
 
-        private void InsertInternal(IDbConnection connection, IDbTransaction transaction, T item)
+        private void InsertInternal(IDbConnection connection, IDbTransaction? transaction, T item)
         {
             OnBeforeInsert(connection, transaction, item);
             OnValidate(connection, item);
@@ -198,7 +198,7 @@ namespace Reform.Logic
             OnAfterInsert(connection, transaction, item);
         }
 
-        private async Task InsertInternalAsync(IDbConnection connection, IDbTransaction transaction, T item)
+        private async Task InsertInternalAsync(IDbConnection connection, IDbTransaction? transaction, T item)
         {
             await OnBeforeInsertAsync(connection, transaction, item);
             OnValidate(connection, item);
@@ -246,7 +246,7 @@ namespace Reform.Logic
 
         public void Update(IDbConnection connection, T item)
         {
-            UpdateInternal(connection, null!, item);
+            UpdateInternal(connection, null, item);
         }
 
         public void Update(IDbConnection connection, IDbTransaction transaction, T item)
@@ -293,7 +293,7 @@ namespace Reform.Logic
             await UpdateInternalAsync(connection, transaction, item);
         }
 
-        private void UpdateInternal(IDbConnection connection, IDbTransaction transaction, T item)
+        private void UpdateInternal(IDbConnection connection, IDbTransaction? transaction, T item)
         {
             OnBeforeUpdate(connection, transaction, item);
             OnValidate(connection, item);
@@ -301,7 +301,7 @@ namespace Reform.Logic
             OnAfterUpdate(connection, transaction, item);
         }
 
-        private async Task UpdateInternalAsync(IDbConnection connection, IDbTransaction transaction, T item)
+        private async Task UpdateInternalAsync(IDbConnection connection, IDbTransaction? transaction, T item)
         {
             await OnBeforeUpdateAsync(connection, transaction, item);
             OnValidate(connection, item);
@@ -349,7 +349,7 @@ namespace Reform.Logic
 
         public void Delete(IDbConnection connection, T item)
         {
-            DeleteInternal(connection, null!, item);
+            DeleteInternal(connection, null, item);
         }
 
         public void Delete(IDbConnection connection, IDbTransaction transaction, T item)
@@ -396,14 +396,14 @@ namespace Reform.Logic
             await DeleteInternalAsync(connection, transaction, item);
         }
 
-        private void DeleteInternal(IDbConnection connection, IDbTransaction transaction, T item)
+        private void DeleteInternal(IDbConnection connection, IDbTransaction? transaction, T item)
         {
             OnBeforeDelete(connection, transaction, item);
             OnDelete(connection, transaction, item);
             OnAfterDelete(connection, transaction, item);
         }
 
-        private async Task DeleteInternalAsync(IDbConnection connection, IDbTransaction transaction, T item)
+        private async Task DeleteInternalAsync(IDbConnection connection, IDbTransaction? transaction, T item)
         {
             await OnBeforeDeleteAsync(connection, transaction, item);
             await OnDeleteAsync(connection, transaction, item);
@@ -710,67 +710,67 @@ namespace Reform.Logic
             return _dataAccess.SelectAsync(connection, transaction, queryCriteria);
         }
 
-        protected virtual void OnInsert(IDbConnection connection, IDbTransaction transaction, T item)
+        protected virtual void OnInsert(IDbConnection connection, IDbTransaction? transaction, T item)
         {
             EnsureDataLayer();
             _dataAccess.Insert(connection, transaction, item);
         }
 
-        protected virtual Task OnInsertAsync(IDbConnection connection, IDbTransaction transaction, T item)
+        protected virtual Task OnInsertAsync(IDbConnection connection, IDbTransaction? transaction, T item)
         {
             EnsureDataLayer();
             return _dataAccess.InsertAsync(connection, transaction, item);
         }
 
-        protected virtual void OnUpdate(IDbConnection connection, IDbTransaction transaction, T item)
+        protected virtual void OnUpdate(IDbConnection connection, IDbTransaction? transaction, T item)
         {
             EnsureDataLayer();
             _dataAccess.Update(connection, transaction, item);
         }
 
-        protected virtual Task OnUpdateAsync(IDbConnection connection, IDbTransaction transaction, T item)
+        protected virtual Task OnUpdateAsync(IDbConnection connection, IDbTransaction? transaction, T item)
         {
             EnsureDataLayer();
             return _dataAccess.UpdateAsync(connection, transaction, item);
         }
 
-        protected virtual void OnDelete(IDbConnection connection, IDbTransaction transaction, T item)
+        protected virtual void OnDelete(IDbConnection connection, IDbTransaction? transaction, T item)
         {
             EnsureDataLayer();
             _dataAccess.Delete(connection, transaction, item);
         }
 
-        protected virtual Task OnDeleteAsync(IDbConnection connection, IDbTransaction transaction, T item)
+        protected virtual Task OnDeleteAsync(IDbConnection connection, IDbTransaction? transaction, T item)
         {
             EnsureDataLayer();
             return _dataAccess.DeleteAsync(connection, transaction, item);
         }
 
-        protected virtual void OnTruncate(IDbConnection connection, IDbTransaction transaction)
+        protected virtual void OnTruncate(IDbConnection connection, IDbTransaction? transaction)
         {
             EnsureDataLayer();
             _dataAccess.Truncate(connection, transaction);
         }
 
-        protected virtual Task OnTruncateAsync(IDbConnection connection, IDbTransaction transaction)
+        protected virtual Task OnTruncateAsync(IDbConnection connection, IDbTransaction? transaction)
         {
             EnsureDataLayer();
             return _dataAccess.TruncateAsync(connection, transaction);
         }
 
-        protected virtual void OnBeforeInsert(IDbConnection connection, IDbTransaction transaction, T item) { }
-        protected virtual void OnBeforeUpdate(IDbConnection connection, IDbTransaction transaction, T item) { }
-        protected virtual void OnAfterInsert(IDbConnection connection, IDbTransaction transaction, T item) { }
-        protected virtual void OnAfterUpdate(IDbConnection connection, IDbTransaction transaction, T item) { }
-        protected virtual void OnBeforeDelete(IDbConnection connection, IDbTransaction transaction, T item) { }
-        protected virtual void OnAfterDelete(IDbConnection connection, IDbTransaction transaction, T item) { }
+        protected virtual void OnBeforeInsert(IDbConnection connection, IDbTransaction? transaction, T item) { }
+        protected virtual void OnBeforeUpdate(IDbConnection connection, IDbTransaction? transaction, T item) { }
+        protected virtual void OnAfterInsert(IDbConnection connection, IDbTransaction? transaction, T item) { }
+        protected virtual void OnAfterUpdate(IDbConnection connection, IDbTransaction? transaction, T item) { }
+        protected virtual void OnBeforeDelete(IDbConnection connection, IDbTransaction? transaction, T item) { }
+        protected virtual void OnAfterDelete(IDbConnection connection, IDbTransaction? transaction, T item) { }
 
-        protected virtual Task OnBeforeInsertAsync(IDbConnection connection, IDbTransaction transaction, T item) { OnBeforeInsert(connection, transaction, item); return Task.CompletedTask; }
-        protected virtual Task OnBeforeUpdateAsync(IDbConnection connection, IDbTransaction transaction, T item) { OnBeforeUpdate(connection, transaction, item); return Task.CompletedTask; }
-        protected virtual Task OnAfterInsertAsync(IDbConnection connection, IDbTransaction transaction, T item) { OnAfterInsert(connection, transaction, item); return Task.CompletedTask; }
-        protected virtual Task OnAfterUpdateAsync(IDbConnection connection, IDbTransaction transaction, T item) { OnAfterUpdate(connection, transaction, item); return Task.CompletedTask; }
-        protected virtual Task OnBeforeDeleteAsync(IDbConnection connection, IDbTransaction transaction, T item) { OnBeforeDelete(connection, transaction, item); return Task.CompletedTask; }
-        protected virtual Task OnAfterDeleteAsync(IDbConnection connection, IDbTransaction transaction, T item) { OnAfterDelete(connection, transaction, item); return Task.CompletedTask; }
+        protected virtual Task OnBeforeInsertAsync(IDbConnection connection, IDbTransaction? transaction, T item) { OnBeforeInsert(connection, transaction, item); return Task.CompletedTask; }
+        protected virtual Task OnBeforeUpdateAsync(IDbConnection connection, IDbTransaction? transaction, T item) { OnBeforeUpdate(connection, transaction, item); return Task.CompletedTask; }
+        protected virtual Task OnAfterInsertAsync(IDbConnection connection, IDbTransaction? transaction, T item) { OnAfterInsert(connection, transaction, item); return Task.CompletedTask; }
+        protected virtual Task OnAfterUpdateAsync(IDbConnection connection, IDbTransaction? transaction, T item) { OnAfterUpdate(connection, transaction, item); return Task.CompletedTask; }
+        protected virtual Task OnBeforeDeleteAsync(IDbConnection connection, IDbTransaction? transaction, T item) { OnBeforeDelete(connection, transaction, item); return Task.CompletedTask; }
+        protected virtual Task OnAfterDeleteAsync(IDbConnection connection, IDbTransaction? transaction, T item) { OnAfterDelete(connection, transaction, item); return Task.CompletedTask; }
 
         #endregion
     }

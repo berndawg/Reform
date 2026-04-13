@@ -14,9 +14,9 @@ namespace Reform.Logic
 
         public void Validate(T item)
         {
-            var errors = GetErrors(item);
+            var errors = GetErrors(item).ToList();
 
-            if (errors.Any())
+            if (errors.Count != 0)
                 throw new ArgumentException(string.Join(Environment.NewLine, errors), nameof(item));
         }
 
