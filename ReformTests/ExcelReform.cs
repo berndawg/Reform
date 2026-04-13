@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Linq.Expressions;
 using ClosedXML.Excel;
 using Reform.Interfaces;
@@ -27,12 +24,12 @@ namespace ReformTests
 
         public override void Insert(T item)
         {
-            OnValidate(null, item);
+            OnValidate(null!, item);
 
             using (var workbook = LoadOrCreateWorkbook())
             {
                 var worksheet = GetOrCreateWorksheet(workbook);
-                int nextRow = (worksheet.LastRowUsed()?.RowNumber() ?? 1) + 1;
+                var nextRow = (worksheet.LastRowUsed()?.RowNumber() ?? 1) + 1;
 
                 // Auto-increment identity
                 var identityProp = _metadataProvider.AllProperties
@@ -40,7 +37,7 @@ namespace ReformTests
 
                 if (identityProp != null)
                 {
-                    int nextId = GetMaxIdentityValue(worksheet, identityProp) + 1;
+                    var nextId = GetMaxIdentityValue(worksheet, identityProp) + 1;
                     identityProp.SetPropertyValue(item, nextId);
                 }
 
@@ -51,22 +48,25 @@ namespace ReformTests
 
         public override void Insert(List<T> items)
         {
-            foreach (T item in items)
+            foreach (var item in items)
                 Insert(item);
         }
 
         public override void Update(T item)
         {
-            OnValidate(null, item);
+            OnValidate(null!, item);
 
             using (var workbook = LoadOrCreateWorkbook())
             {
                 var worksheet = workbook.Worksheet(SheetName);
                 var pkProp = _metadataProvider.AllProperties.First(p => p.IsPrimaryKey);
-                object pkValue = pkProp.GetPropertyValue(item);
-                int pkCol = GetColumnIndex(worksheet, pkProp.ColumnName);
+                var pkValue = pkProp.GetPropertyValue(item);
+                var pkCol = GetColumnIndex(worksheet, pkProp.ColumnName);
+                var lastRow = worksheet.LastRowUsed();
+                if (lastRow == null)
+                    throw new InvalidOperationException($"Expected to find 1 {typeof(T).Name} but found 0.");
 
-                for (int row = 2; row <= worksheet.LastRowUsed().RowNumber(); row++)
+                for (var row = 2; row <= lastRow.RowNumber(); row++)
                 {
                     var cellValue = ReadCellValue(worksheet.Cell(row, pkCol), pkProp.PropertyType);
                     if (pkValue.Equals(cellValue))
@@ -83,7 +83,7 @@ namespace ReformTests
 
         public override void Update(List<T> list)
         {
-            foreach (T item in list)
+            foreach (var item in list)
                 Update(item);
         }
 
@@ -93,10 +93,13 @@ namespace ReformTests
             {
                 var worksheet = workbook.Worksheet(SheetName);
                 var pkProp = _metadataProvider.AllProperties.First(p => p.IsPrimaryKey);
-                object pkValue = pkProp.GetPropertyValue(item);
-                int pkCol = GetColumnIndex(worksheet, pkProp.ColumnName);
+                var pkValue = pkProp.GetPropertyValue(item);
+                var pkCol = GetColumnIndex(worksheet, pkProp.ColumnName);
+                var lastRow = worksheet.LastRowUsed();
+                if (lastRow == null)
+                    return;
 
-                for (int row = 2; row <= worksheet.LastRowUsed().RowNumber(); row++)
+                for (var row = 2; row <= lastRow.RowNumber(); row++)
                 {
                     var cellValue = ReadCellValue(worksheet.Cell(row, pkCol), pkProp.PropertyType);
                     if (pkValue.Equals(cellValue))
@@ -111,7 +114,7 @@ namespace ReformTests
 
         public override void Delete(List<T> list)
         {
-            foreach (T item in list)
+            foreach (var item in list)
                 Delete(item);
         }
 
@@ -146,7 +149,7 @@ namespace ReformTests
             var list = Select(predicate).ToList();
             if (list.Count > 1)
                 throw new InvalidOperationException($"Expected to find 1 or 0 {typeof(T).Name} but found {list.Count}.");
-            return list.FirstOrDefault();
+            return list.FirstOrDefault()!;
         }
 
         public override int Count()
@@ -185,7 +188,7 @@ namespace ReformTests
             var worksheet = workbook.Worksheets.Add(SheetName);
 
             // Write header row
-            int col = 1;
+            var col = 1;
             foreach (var prop in _metadataProvider.AllProperties)
             {
                 worksheet.Cell(1, col++).Value = prop.ColumnName;
@@ -196,7 +199,7 @@ namespace ReformTests
 
         private void WriteRow(IXLWorksheet worksheet, int rowNumber, T item)
         {
-            int col = 1;
+            var col = 1;
             foreach (var prop in _metadataProvider.AllProperties)
             {
                 var value = prop.GetPropertyValue(item);
@@ -234,11 +237,13 @@ namespace ReformTests
                 // Build column map from header row
                 var columnMap = new Dictionary<int, PropertyMap>();
                 var headerRow = worksheet.Row(1);
-                int lastCol = worksheet.LastColumnUsed().ColumnNumber();
+                var lastCol = worksheet.LastColumnUsed();
+                if (lastCol == null)
+                    return new List<T>();
 
-                for (int col = 1; col <= lastCol; col++)
+                for (var col = 1; col <= lastCol.ColumnNumber(); col++)
                 {
-                    string columnName = headerRow.Cell(col).GetString();
+                    var columnName = headerRow.Cell(col).GetString();
                     var propMap = _metadataProvider.GetPropertyMapByColumnName(columnName);
                     if (propMap != null)
                         columnMap[col] = propMap;
@@ -246,17 +251,18 @@ namespace ReformTests
 
                 // Read data rows
                 var results = new List<T>();
-                for (int row = 2; row <= lastRow.RowNumber(); row++)
+                for (var row = 2; row <= lastRow.RowNumber(); row++)
                 {
-                    T instance = (T)Activator.CreateInstance(typeof(T));
+                    var instance = (T)Activator.CreateInstance(typeof(T))!;
 
                     foreach (var (col, propMap) in columnMap)
                     {
                         var cell = worksheet.Cell(row, col);
                         if (!cell.IsEmpty())
                         {
-                            object value = ReadCellValue(cell, propMap.PropertyType);
-                            propMap.SetPropertyValue(instance, value);
+                            var value = ReadCellValue(cell, propMap.PropertyType);
+                            if (value is not null)
+                                propMap.SetPropertyValue(instance, value);
                         }
                     }
 
@@ -267,11 +273,11 @@ namespace ReformTests
             }
         }
 
-        private object ReadCellValue(IXLCell cell, Type targetType)
+        private static object? ReadCellValue(IXLCell cell, Type targetType)
         {
             if (cell.IsEmpty()) return null;
 
-            Type underlying = Nullable.GetUnderlyingType(targetType) ?? targetType;
+            var underlying = Nullable.GetUnderlyingType(targetType) ?? targetType;
 
             if (cell.Value.IsNumber)
                 return Convert.ChangeType(cell.Value.GetNumber(), underlying);
@@ -288,9 +294,12 @@ namespace ReformTests
         private int GetColumnIndex(IXLWorksheet worksheet, string columnName)
         {
             var headerRow = worksheet.Row(1);
-            int lastCol = worksheet.LastColumnUsed().ColumnNumber();
+            var lastColUsed = worksheet.LastColumnUsed();
+            if (lastColUsed == null)
+                throw new InvalidOperationException($"Column '{columnName}' not found in worksheet '{SheetName}'.");
+            var lastCol = lastColUsed.ColumnNumber();
 
-            for (int col = 1; col <= lastCol; col++)
+            for (var col = 1; col <= lastCol; col++)
             {
                 if (headerRow.Cell(col).GetString() == columnName)
                     return col;
@@ -301,19 +310,19 @@ namespace ReformTests
 
         private int GetMaxIdentityValue(IXLWorksheet worksheet, PropertyMap identityProp)
         {
-            int pkCol = GetColumnIndex(worksheet, identityProp.ColumnName);
-            int max = 0;
+            var pkCol = GetColumnIndex(worksheet, identityProp.ColumnName);
+            var max = 0;
 
             var lastRow = worksheet.LastRowUsed();
             if (lastRow == null || lastRow.RowNumber() < 2)
                 return max;
 
-            for (int row = 2; row <= lastRow.RowNumber(); row++)
+            for (var row = 2; row <= lastRow.RowNumber(); row++)
             {
                 var cell = worksheet.Cell(row, pkCol);
                 if (!cell.IsEmpty() && cell.Value.IsNumber)
                 {
-                    int val = (int)cell.Value.GetNumber();
+                    var val = (int)cell.Value.GetNumber();
                     if (val > max) max = val;
                 }
             }

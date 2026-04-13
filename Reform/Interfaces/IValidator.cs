@@ -1,7 +1,6 @@
-namespace Reform.Interfaces
+namespace Reform.Interfaces;
+
+public interface IValidator<T> where T : class
 {
-    public interface IValidator<T> where T : class
-    {
-        void Validate(T item);
-    }
+    void Validate(T item);
 }

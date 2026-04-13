@@ -30,7 +30,7 @@ namespace Reform.Dialects
 
         public string ParameterPrefix => "@";
 
-        public string EscapeLikeValue(string value)
+        public string? EscapeLikeValue(string? value)
         {
             if (value == null) return null;
             return value.Replace(@"\", @"\\").Replace("%", @"\%").Replace("_", @"\_");

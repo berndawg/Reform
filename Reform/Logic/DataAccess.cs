@@ -1,9 +1,6 @@
-using System;
-using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Linq.Expressions;
-using System.Threading.Tasks;
 using Reform.Interfaces;
 using Reform.Objects;
 
@@ -18,7 +15,8 @@ namespace Reform.Logic
         private readonly ParameterExpression _pkParam;
         private readonly MemberExpression _pkProperty;
 
-        public DataAccess(IMetadataProvider<T> metadataProvider, ICommandBuilder<T> commandBuilder, IDebugLogger debugLogger)
+        public DataAccess(IMetadataProvider<T> metadataProvider, ICommandBuilder<T> commandBuilder,
+            IDebugLogger debugLogger)
         {
             _metadataProvider = metadataProvider;
             _commandBuilder = commandBuilder;
@@ -37,52 +35,47 @@ namespace Reform.Logic
 
         #region Sync
 
-        public int Count(IDbConnection connection, IDbTransaction transaction, Expression<Func<T, bool>> predicate)
+        public int Count(IDbConnection connection, IDbTransaction? transaction, Expression<Func<T, bool>>? predicate)
         {
-            using (IDbCommand command = _commandBuilder.GetCountCommand(connection, predicate))
-            {
-                command.Transaction = transaction;
-                return Convert.ToInt32(ExecuteScalar(command));
-            }
+            using var command = _commandBuilder.GetCountCommand(connection, predicate);
+            command.Transaction = transaction;
+            return Convert.ToInt32(ExecuteScalar(command));
         }
 
-        public bool Exists(IDbConnection connection, IDbTransaction transaction, Expression<Func<T, bool>> predicate)
+        public bool Exists(IDbConnection connection, IDbTransaction? transaction, Expression<Func<T, bool>>? predicate)
         {
-            using (IDbCommand command = _commandBuilder.GetExistsCommand(connection, predicate))
-            {
-                command.Transaction = transaction;
-                return Convert.ToInt64(ExecuteScalar(command)) == 1;
-            }
+            using var command = _commandBuilder.GetExistsCommand(connection, predicate);
+            command.Transaction = transaction;
+            return Convert.ToInt64(ExecuteScalar(command)) == 1;
         }
 
-        public IEnumerable<T> Select(IDbConnection connection, IDbTransaction transaction, QueryCriteria<T> queryCriteria)
+        public IEnumerable<T> Select(IDbConnection connection, IDbTransaction? transaction,
+            QueryCriteria<T> queryCriteria)
         {
-            using (IDbCommand command = _commandBuilder.GetSelectCommand(connection, queryCriteria))
-            {
-                command.Transaction = transaction;
-                return ExecuteReader(command);
-            }
+            using var command = _commandBuilder.GetSelectCommand(connection, queryCriteria);
+            command.Transaction = transaction;
+            return ExecuteReader(command);
         }
 
-        public void Insert(IDbConnection connection, IDbTransaction transaction, T instance)
+        public void Insert(IDbConnection connection, IDbTransaction? transaction, T instance)
         {
-            using (IDbCommand command = _commandBuilder.GetInsertCommand(connection, instance))
-            {
-                command.Transaction = transaction;
-                object id = ExecuteScalar(command);
+            using var command = _commandBuilder.GetInsertCommand(connection, instance);
+            command.Transaction = transaction;
+            var id = ExecuteScalar(command);
 
-                if (id != null && id != DBNull.Value)
-                    _metadataProvider.SetPrimaryKeyValue(instance, Convert.ChangeType(id, _metadataProvider.PrimaryKeyPropertyType));
-            }
+            if (id != DBNull.Value)
+                _metadataProvider.SetPrimaryKeyValue(instance,
+                    Convert.ChangeType(id, _metadataProvider.PrimaryKeyPropertyType));
         }
 
-        public void Update(IDbConnection connection, IDbTransaction transaction, T instance)
+        public void Update(IDbConnection connection, IDbTransaction? transaction, T instance)
         {
             var predicate = BuildPkPredicate(_metadataProvider.GetPrimaryKeyValue(instance));
             Update(connection, transaction, instance, predicate);
         }
 
-        public void Update(IDbConnection connection, IDbTransaction transaction, T instance, Expression<Func<T, bool>> predicate)
+        public void Update(IDbConnection connection, IDbTransaction? transaction, T instance,
+            Expression<Func<T, bool>> predicate)
         {
             var queryCriteria = new QueryCriteria<T> { Predicate = predicate };
             var list = new List<T>(Select(connection, transaction, queryCriteria));
@@ -90,90 +83,81 @@ namespace Reform.Logic
             if (list.Count != 1)
                 throw new InvalidOperationException($"Expected to find 1 {typeof(T).Name} but found {list.Count}.");
 
-            using (IDbCommand command = _commandBuilder.GetUpdateCommand(connection, instance, list[0], predicate))
-            {
-                if (string.IsNullOrEmpty(command.CommandText))
-                    return;
+            using var command = _commandBuilder.GetUpdateCommand(connection, instance, list[0], predicate);
+            if (string.IsNullOrEmpty(command.CommandText))
+                return;
 
-                command.Transaction = transaction;
-                ExecuteNonQuery(command);
-            }
+            command.Transaction = transaction;
+            ExecuteNonQuery(command);
         }
 
-        public void Delete(IDbConnection connection, IDbTransaction transaction, T instance)
+        public void Delete(IDbConnection connection, IDbTransaction? transaction, T instance)
         {
             var predicate = BuildPkPredicate(_metadataProvider.GetPrimaryKeyValue(instance));
             Delete(connection, transaction, predicate);
         }
 
-        public void Delete(IDbConnection connection, IDbTransaction transaction, Expression<Func<T, bool>> predicate)
+        public void Delete(IDbConnection connection, IDbTransaction? transaction, Expression<Func<T, bool>> predicate)
         {
-            using (IDbCommand command = _commandBuilder.GetDeleteCommand(connection, predicate))
-            {
-                command.Transaction = transaction;
-                ExecuteNonQuery(command);
-            }
+            using var command = _commandBuilder.GetDeleteCommand(connection, predicate);
+            command.Transaction = transaction;
+            ExecuteNonQuery(command);
         }
 
-        public void Truncate(IDbConnection connection, IDbTransaction transaction)
+        public void Truncate(IDbConnection connection, IDbTransaction? transaction)
         {
-            using (IDbCommand command = _commandBuilder.GetTruncateCommand(connection))
-            {
-                command.Transaction = transaction;
-                ExecuteNonQuery(command);
-            }
+            using var command = _commandBuilder.GetTruncateCommand(connection);
+            command.Transaction = transaction;
+            ExecuteNonQuery(command);
         }
 
         #endregion
 
         #region Async
 
-        public async Task<int> CountAsync(IDbConnection connection, IDbTransaction transaction, Expression<Func<T, bool>> predicate)
+        public async Task<int> CountAsync(IDbConnection connection, IDbTransaction? transaction,
+            Expression<Func<T, bool>>? predicate)
         {
-            using (IDbCommand command = _commandBuilder.GetCountCommand(connection, predicate))
-            {
-                command.Transaction = transaction;
-                return Convert.ToInt32(await ExecuteScalarAsync((DbCommand)command));
-            }
+            using var command = _commandBuilder.GetCountCommand(connection, predicate);
+            command.Transaction = transaction;
+            return Convert.ToInt32(await ExecuteScalarAsync((DbCommand)command));
         }
 
-        public async Task<bool> ExistsAsync(IDbConnection connection, IDbTransaction transaction, Expression<Func<T, bool>> predicate)
+        public async Task<bool> ExistsAsync(IDbConnection connection, IDbTransaction? transaction,
+            Expression<Func<T, bool>>? predicate)
         {
-            using (IDbCommand command = _commandBuilder.GetExistsCommand(connection, predicate))
-            {
-                command.Transaction = transaction;
-                return Convert.ToInt64(await ExecuteScalarAsync((DbCommand)command)) == 1;
-            }
+            using var command = _commandBuilder.GetExistsCommand(connection, predicate);
+            command.Transaction = transaction;
+            return Convert.ToInt64(await ExecuteScalarAsync((DbCommand)command)) == 1;
         }
 
-        public async Task<IEnumerable<T>> SelectAsync(IDbConnection connection, IDbTransaction transaction, QueryCriteria<T> queryCriteria)
+        public async Task<IEnumerable<T>> SelectAsync(IDbConnection connection, IDbTransaction? transaction,
+            QueryCriteria<T> queryCriteria)
         {
-            using (IDbCommand command = _commandBuilder.GetSelectCommand(connection, queryCriteria))
-            {
-                command.Transaction = transaction;
-                return await ExecuteReaderAsync((DbCommand)command);
-            }
+            using var command = _commandBuilder.GetSelectCommand(connection, queryCriteria);
+            command.Transaction = transaction;
+            return await ExecuteReaderAsync((DbCommand)command);
         }
 
-        public async Task InsertAsync(IDbConnection connection, IDbTransaction transaction, T instance)
+        public async Task InsertAsync(IDbConnection connection, IDbTransaction? transaction, T instance)
         {
-            using (IDbCommand command = _commandBuilder.GetInsertCommand(connection, instance))
-            {
-                command.Transaction = transaction;
-                object id = await ExecuteScalarAsync((DbCommand)command);
+            using var command = _commandBuilder.GetInsertCommand(connection, instance);
+            command.Transaction = transaction;
+            var id = await ExecuteScalarAsync((DbCommand)command);
 
-                if (id != null && id != DBNull.Value)
-                    _metadataProvider.SetPrimaryKeyValue(instance, Convert.ChangeType(id, _metadataProvider.PrimaryKeyPropertyType));
-            }
+            if (id != DBNull.Value)
+                _metadataProvider.SetPrimaryKeyValue(instance,
+                    Convert.ChangeType(id, _metadataProvider.PrimaryKeyPropertyType));
         }
 
-        public async Task UpdateAsync(IDbConnection connection, IDbTransaction transaction, T instance)
+        public async Task UpdateAsync(IDbConnection connection, IDbTransaction? transaction, T instance)
         {
             var predicate = BuildPkPredicate(_metadataProvider.GetPrimaryKeyValue(instance));
             await UpdateAsync(connection, transaction, instance, predicate);
         }
 
-        public async Task UpdateAsync(IDbConnection connection, IDbTransaction transaction, T instance, Expression<Func<T, bool>> predicate)
+        public async Task UpdateAsync(IDbConnection connection, IDbTransaction? transaction, T instance,
+            Expression<Func<T, bool>> predicate)
         {
             var queryCriteria = new QueryCriteria<T> { Predicate = predicate };
             var list = new List<T>(await SelectAsync(connection, transaction, queryCriteria));
@@ -181,38 +165,33 @@ namespace Reform.Logic
             if (list.Count != 1)
                 throw new InvalidOperationException($"Expected to find 1 {typeof(T).Name} but found {list.Count}.");
 
-            using (IDbCommand command = _commandBuilder.GetUpdateCommand(connection, instance, list[0], predicate))
-            {
-                if (string.IsNullOrEmpty(command.CommandText))
-                    return;
+            using var command = _commandBuilder.GetUpdateCommand(connection, instance, list[0], predicate);
+            if (string.IsNullOrEmpty(command.CommandText))
+                return;
 
-                command.Transaction = transaction;
-                await ExecuteNonQueryAsync((DbCommand)command);
-            }
+            command.Transaction = transaction;
+            await ExecuteNonQueryAsync((DbCommand)command);
         }
 
-        public async Task DeleteAsync(IDbConnection connection, IDbTransaction transaction, T instance)
+        public async Task DeleteAsync(IDbConnection connection, IDbTransaction? transaction, T instance)
         {
             var predicate = BuildPkPredicate(_metadataProvider.GetPrimaryKeyValue(instance));
             await DeleteAsync(connection, transaction, predicate);
         }
 
-        public async Task DeleteAsync(IDbConnection connection, IDbTransaction transaction, Expression<Func<T, bool>> predicate)
+        public async Task DeleteAsync(IDbConnection connection, IDbTransaction? transaction,
+            Expression<Func<T, bool>> predicate)
         {
-            using (IDbCommand command = _commandBuilder.GetDeleteCommand(connection, predicate))
-            {
-                command.Transaction = transaction;
-                await ((DbCommand)command).ExecuteNonQueryAsync();
-            }
+            using var command = _commandBuilder.GetDeleteCommand(connection, predicate);
+            command.Transaction = transaction;
+            await ((DbCommand)command).ExecuteNonQueryAsync();
         }
 
-        public async Task TruncateAsync(IDbConnection connection, IDbTransaction transaction)
+        public async Task TruncateAsync(IDbConnection connection, IDbTransaction? transaction)
         {
-            using (IDbCommand command = _commandBuilder.GetTruncateCommand(connection))
-            {
-                command.Transaction = transaction;
-                await ExecuteNonQueryAsync((DbCommand)command);
-            }
+            using var command = _commandBuilder.GetTruncateCommand(connection);
+            command.Transaction = transaction;
+            await ExecuteNonQueryAsync((DbCommand)command);
         }
 
         #endregion
@@ -229,7 +208,7 @@ namespace Reform.Logic
             }
         }
 
-        private object ExecuteScalar(IDbCommand command)
+        private object? ExecuteScalar(IDbCommand command)
         {
             WriteCommand(command);
 
@@ -247,14 +226,13 @@ namespace Reform.Logic
             {
                 var list = new List<T>();
 
-                using (IDataReader dataReader = command.ExecuteReader())
+                using (var dataReader = command.ExecuteReader())
                 {
-                    PropertyMap[] propertyMaps = null;
+                    PropertyMap?[]? propertyMaps = null;
 
                     while (dataReader.Read())
                     {
-                        if (propertyMaps == null)
-                            propertyMaps = GetPropertyMaps(dataReader);
+                        propertyMaps ??= GetPropertyMaps(dataReader);
 
                         list.Add(GetInstance(dataReader, propertyMaps));
                     }
@@ -274,7 +252,7 @@ namespace Reform.Logic
             }
         }
 
-        private async Task<object> ExecuteScalarAsync(DbCommand command)
+        private async Task<object?> ExecuteScalarAsync(DbCommand command)
         {
             WriteCommand(command);
 
@@ -292,14 +270,13 @@ namespace Reform.Logic
             {
                 var list = new List<T>();
 
-                using (var dataReader = await command.ExecuteReaderAsync())
+                await using (var dataReader = await command.ExecuteReaderAsync())
                 {
-                    PropertyMap[] propertyMaps = null;
+                    PropertyMap?[]? propertyMaps = null;
 
                     while (await dataReader.ReadAsync())
                     {
-                        if (propertyMaps == null)
-                            propertyMaps = GetPropertyMaps(dataReader);
+                        propertyMaps ??= GetPropertyMaps(dataReader);
 
                         list.Add(GetInstance(dataReader, propertyMaps));
                     }
@@ -313,46 +290,36 @@ namespace Reform.Logic
 
         #region Mapping
 
-        private PropertyMap[] GetPropertyMaps(IDataRecord reader)
+        private PropertyMap?[] GetPropertyMaps(IDataRecord reader)
         {
-            var array = new PropertyMap[reader.FieldCount];
+            var array = new PropertyMap?[reader.FieldCount];
 
             for (var i = 0; i < reader.FieldCount; i++)
             {
-                string columnName = reader.GetName(i);
+                var columnName = reader.GetName(i);
                 array[i] = _metadataProvider.GetPropertyMapByColumnName(columnName);
             }
 
             return array;
         }
 
-        private T GetInstance(IDataRecord reader, PropertyMap[] propertyMaps)
+        private T GetInstance(IDataRecord reader, PropertyMap?[] propertyMaps)
         {
-            T instance = _factory();
+            var instance = _factory();
 
             for (var i = 0; i < reader.FieldCount; i++)
             {
-                if (propertyMaps[i] == null)
+                if (propertyMaps[i] is null || reader.IsDBNull(i))
                     continue;
 
-                if (reader.IsDBNull(i))
-                    continue;
+                var value = reader.GetValue(i);
+                var targetType = propertyMaps[i]!.PropertyType;
+                var underlyingType = Nullable.GetUnderlyingType(targetType) ?? targetType;
 
-                try
-                {
-                    object value = reader.GetValue(i);
-                    Type targetType = propertyMaps[i].PropertyType;
-                    Type underlyingType = Nullable.GetUnderlyingType(targetType) ?? targetType;
+                if (value.GetType() != underlyingType)
+                    value = Convert.ChangeType(value, underlyingType);
 
-                    if (value.GetType() != underlyingType)
-                        value = Convert.ChangeType(value, underlyingType);
-
-                    propertyMaps[i].SetPropertyValue(instance, value);
-                }
-                catch (Exception e)
-                {
-                    throw new Exception($"Failed to set property '{propertyMaps[i].PropertyName}'", e);
-                }
+                propertyMaps[i]!.SetPropertyValue(instance, value);
             }
 
             return instance;

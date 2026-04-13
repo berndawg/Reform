@@ -1,19 +1,11 @@
 using Reform.Interfaces;
 
-namespace Reform.Logic
+namespace Reform.Logic;
+
+internal sealed class DefaultConnectionStringProvider(string? connectionString) : IConnectionStringProvider
 {
-    internal sealed class DefaultConnectionStringProvider : IConnectionStringProvider
+    public string GetConnectionString(string databaseName)
     {
-        private readonly string _connectionString;
-
-        public DefaultConnectionStringProvider(string connectionString)
-        {
-            _connectionString = connectionString;
-        }
-
-        public string GetConnectionString(string databaseName)
-        {
-            return _connectionString;
-        }
+        return connectionString!;
     }
 }

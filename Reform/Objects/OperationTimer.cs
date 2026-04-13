@@ -1,24 +1,20 @@
-using Reform.Interfaces;
-using System;
 using System.Diagnostics;
+using Reform.Interfaces;
 
-namespace Reform.Objects
+namespace Reform.Objects;
+
+public sealed class OperationTimer(IDebugLogger debugLogger) : IDisposable
 {
-    public class OperationTimer : IDisposable
+    private readonly Stopwatch _stopwatch = Stopwatch.StartNew();
+    private bool _disposed;
+
+    public void Dispose()
     {
-        private readonly Stopwatch _stopwatch;
-        private readonly IDebugLogger _debugLogger;
+        if (_disposed)
+            return;
 
-        public OperationTimer(IDebugLogger debugLogger)
-        {
-            _debugLogger = debugLogger;
-            _stopwatch = Stopwatch.StartNew();
-        }
-
-        public void Dispose()
-        {
-            _stopwatch.Stop();
-            _debugLogger.WriteLine($"ELAPSED TIME: {_stopwatch.Elapsed}{Environment.NewLine}");
-        }
+        _disposed = true;
+        _stopwatch.Stop();
+        debugLogger.WriteLine($"ELAPSED TIME: {_stopwatch.Elapsed}{Environment.NewLine}");
     }
 }

@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
 using Reform.Attributes;
 using Reform.Interfaces;
@@ -17,7 +14,7 @@ namespace Reform.Logic
         public string DatabaseName { get; }
         public string TableName { get; }
 
-        private readonly PropertyMap _primaryKeyPropertyMap;
+        private readonly PropertyMap? _primaryKeyPropertyMap;
         private readonly Dictionary<string, PropertyMap> _propertyMapLookupByPropertyName;
         private readonly Dictionary<string, PropertyMap> _propertyMapLookupByColumnName;
 
@@ -29,12 +26,12 @@ namespace Reform.Logic
         {
             Type = type;
 
-            var entityMetadataArray = (EntityMetadata[])Type.GetCustomAttributes(typeof(EntityMetadata), false);
+            var entityMetadataArray = (EntityMetadataAttribute[])Type.GetCustomAttributes(typeof(EntityMetadataAttribute), false);
 
             if (entityMetadataArray.Length == 0)
                 throw new InvalidOperationException($"Type '{Type.Name}' is missing the [EntityMetadata] attribute.");
 
-            EntityMetadata entityMetadata = entityMetadataArray[0];
+            var entityMetadata = entityMetadataArray[0];
 
             if (string.IsNullOrEmpty(entityMetadata.TableName))
                 throw new InvalidOperationException($"Type '{Type.Name}' has an [EntityMetadata] attribute with no TableName specified.");
@@ -45,7 +42,7 @@ namespace Reform.Logic
 
             TableName = entityMetadata.TableName;
 
-            List<PropertyMap> allProperties = GetProperties(Type).ToList();
+            var allProperties = GetProperties(Type).ToList();
 
             AllProperties = allProperties;
             RequiredProperties = allProperties.Where(x => x.IsRequired).ToList();
@@ -57,14 +54,14 @@ namespace Reform.Logic
             _propertyMapLookupByColumnName = allProperties.ToDictionary(p => p.ColumnName, p => p);
         }
 
-        public PropertyMap GetPropertyMapByPropertyName(string propertyName)
+        public PropertyMap? GetPropertyMapByPropertyName(string propertyName)
         {
-            return _propertyMapLookupByPropertyName.TryGetValue(propertyName, out var map) ? map : null;
+        return _propertyMapLookupByPropertyName.ContainsKey(propertyName) ? _propertyMapLookupByPropertyName[propertyName] : null;
         }
 
-        public PropertyMap GetPropertyMapByColumnName(string columnName)
+        public PropertyMap? GetPropertyMapByColumnName(string columnName)
         {
-            return _propertyMapLookupByColumnName.TryGetValue(columnName, out var map) ? map : null;
+        return _propertyMapLookupByColumnName.ContainsKey(columnName) ? _propertyMapLookupByColumnName[columnName] : null;
         }
 
         public object GetPrimaryKeyValue(T instance)
@@ -75,9 +72,10 @@ namespace Reform.Logic
             return _primaryKeyPropertyMap.GetPropertyValue(instance);
         }
 
-        public void SetPrimaryKeyValue(T instance, object id)
+        public void SetPrimaryKeyValue(T instance, object? id)
         {
-            _primaryKeyPropertyMap?.SetPropertyValue(instance, id);
+            if (id is not null)
+                _primaryKeyPropertyMap?.SetPropertyValue(instance, id);
         }
 
         public string PrimaryKeyPropertyName
@@ -113,12 +111,12 @@ namespace Reform.Logic
             }
         }
 
-        private IEnumerable<PropertyMap> GetProperties(Type type)
+        private static IEnumerable<PropertyMap> GetProperties(Type type)
         {
-            foreach (PropertyInfo propertyInfo in type.GetProperties())
+            foreach (var propertyInfo in type.GetProperties())
             {
                 var propertyMetadataArray =
-                    (PropertyMetadata[])propertyInfo.GetCustomAttributes(typeof(PropertyMetadata), false);
+                    (PropertyMetadataAttribute[])propertyInfo.GetCustomAttributes(typeof(PropertyMetadataAttribute), false);
 
                 if (propertyMetadataArray.Length == 1)
                     yield return new PropertyMap(propertyInfo, propertyMetadataArray[0]);

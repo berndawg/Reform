@@ -1,12 +1,10 @@
 using System.Data;
 using System.Data.Common;
-using System.Threading.Tasks;
 
-namespace Reform.Interfaces
+namespace Reform.Interfaces;
+
+public interface IConnectionProvider<T> where T : class
 {
-    public interface IConnectionProvider<T> where T : class
-    {
-        IDbConnection GetConnection();
-        Task<DbConnection> GetConnectionAsync();
-    }
+    IDbConnection GetConnection();
+    Task<DbConnection> GetConnectionAsync();
 }

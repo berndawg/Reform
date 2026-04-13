@@ -1,8 +1,7 @@
-﻿namespace Reform.Interfaces
+namespace Reform.Interfaces;
+
+// ReSharper disable once UnusedTypeParameter
+public interface IConnectionStringProvider
 {
-    // ReSharper disable once UnusedTypeParameter
-    public interface IConnectionStringProvider
-    {
-        string GetConnectionString(string databaseName);
-    }
+    string GetConnectionString(string databaseName);
 }

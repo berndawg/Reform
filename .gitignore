@@ -1,10 +1,21 @@
-.vs
-obj/
+# Build outputs
 bin/
-Reform/Reform.csproj.vspscc
+obj/
+
+# IDE
+.vs/
+.vscode/
+**/.idea/
+*.DotSettings.user
+*.user
+
+# OS
+.DS_Store
+
+# Visual Studio source control
+*.vspscc
+
+# Database project artifacts
 ReformDB/Database.refactorlog
 ReformDB/ReformDB.dbmdl
 ReformDB/ReformDB.jfm
-ReformDB/ReformDB.sqlproj.user
-ReformDB/ReformDB.sqlproj.vspscc
-ReformTests/ReformTests.csproj.vspscc
