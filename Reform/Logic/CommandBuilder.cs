@@ -54,11 +54,11 @@ namespace Reform.Logic
             return GetCommand(connection, $"{commandText}; {_dialect.IdentitySql}", parameters);
         }
 
-        public IDbCommand GetUpdateCommand(IDbConnection connection, T instance, T original,
+        public IDbCommand GetUpdateCommand(IDbConnection connection, T instance,
                                            Expression<Func<T, bool>> predicate)
         {
             var parameters = new Dictionary<string, object>();
-            var commandText = _sqlBuilder.GetUpdateSql(instance, original, ref parameters, predicate);
+            var commandText = _sqlBuilder.GetUpdateSql(instance, ref parameters, predicate);
 
             return GetCommand(connection, commandText, parameters);
         }

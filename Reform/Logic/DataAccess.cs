@@ -77,16 +77,7 @@ namespace Reform.Logic
         public void Update(IDbConnection connection, IDbTransaction? transaction, T instance,
             Expression<Func<T, bool>> predicate)
         {
-            var queryCriteria = new QueryCriteria<T> { Predicate = predicate };
-            var list = new List<T>(Select(connection, transaction, queryCriteria));
-
-            if (list.Count != 1)
-                throw new InvalidOperationException($"Expected to find 1 {typeof(T).Name} but found {list.Count}.");
-
-            using var command = _commandBuilder.GetUpdateCommand(connection, instance, list[0], predicate);
-            if (string.IsNullOrEmpty(command.CommandText))
-                return;
-
+            using var command = _commandBuilder.GetUpdateCommand(connection, instance, predicate);
             command.Transaction = transaction;
             ExecuteNonQuery(command);
         }
@@ -159,16 +150,7 @@ namespace Reform.Logic
         public async Task UpdateAsync(IDbConnection connection, IDbTransaction? transaction, T instance,
             Expression<Func<T, bool>> predicate)
         {
-            var queryCriteria = new QueryCriteria<T> { Predicate = predicate };
-            var list = new List<T>(await SelectAsync(connection, transaction, queryCriteria));
-
-            if (list.Count != 1)
-                throw new InvalidOperationException($"Expected to find 1 {typeof(T).Name} but found {list.Count}.");
-
-            using var command = _commandBuilder.GetUpdateCommand(connection, instance, list[0], predicate);
-            if (string.IsNullOrEmpty(command.CommandText))
-                return;
-
+            using var command = _commandBuilder.GetUpdateCommand(connection, instance, predicate);
             command.Transaction = transaction;
             await ExecuteNonQueryAsync((DbCommand)command);
         }

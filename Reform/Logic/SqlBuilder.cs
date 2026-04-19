@@ -62,13 +62,10 @@ namespace Reform.Logic
             return $"INSERT INTO {tableName} ({columnNames}) VALUES ({values})";
         }
 
-        public string GetUpdateSql(T instance, T original, ref Dictionary<string, object> parameters,
+        public string GetUpdateSql(T instance, ref Dictionary<string, object> parameters,
                                     Expression<Func<T, bool>> predicate)
         {
-            var nameValuePairs = GetValuesForUpdate(instance, original, ref parameters);
-
-            if (string.IsNullOrEmpty(nameValuePairs))
-                return string.Empty;
+            var nameValuePairs = GetValuesForUpdate(instance, ref parameters);
 
             var tableName = GetTableName();
 
@@ -192,14 +189,12 @@ namespace Reform.Logic
             return stringBuilder.ToString();
         }
 
-        private string GetValuesForUpdate(T instance, T original, ref Dictionary<string, object> parameters)
+        private string GetValuesForUpdate(T instance, ref Dictionary<string, object> parameters)
         {
             var stringBuilder = new StringBuilder();
             var first = true;
 
-            var propertyMapList = FindDifferences(instance, original);
-
-            foreach (var propertyMap in propertyMapList)
+            foreach (var propertyMap in _metadataProvider.UpdateableProperties)
             {
                 if (!first) stringBuilder.Append(',');
                 first = false;
@@ -209,19 +204,6 @@ namespace Reform.Logic
             }
 
             return stringBuilder.ToString();
-        }
-
-        private IEnumerable<PropertyMap> FindDifferences(T instance, T original)
-        {
-            return _metadataProvider.UpdateableProperties.Where(
-                propertyMap => Differ(propertyMap.GetPropertyValue(instance), propertyMap.GetPropertyValue(original))).ToList();
-        }
-
-        private bool Differ(object v1, object v2)
-        {
-            if (v1 == null && v2 == null) return false;
-            if (v1 == null || v2 == null) return true;
-            return !v1.Equals(v2);
         }
 
         private string AddParameter(Dictionary<string, object> parameters, PropertyMap propertyMap, object instance)
