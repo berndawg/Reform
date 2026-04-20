@@ -44,27 +44,37 @@ namespace Reform.Dialects
 
         public string GetExistsSql(string subquery) => $"SELECT CASE WHEN EXISTS({subquery}) THEN 1 ELSE 0 END";
 
-        public string GetColumnMetadataSql(string tableName) =>
-            $"""
-             SELECT
-                 c.COLUMN_NAME AS ColumnName,
-                 c.DATA_TYPE AS DataType,
-                 CAST(CASE WHEN pk.COLUMN_NAME IS NOT NULL THEN 1 ELSE 0 END AS BIT) AS IsPrimaryKey,
-                 CAST(COLUMNPROPERTY(OBJECT_ID(c.TABLE_SCHEMA + '.' + c.TABLE_NAME), c.COLUMN_NAME, 'IsIdentity') AS BIT) AS IsIdentity,
-                 CAST(CASE WHEN c.IS_NULLABLE = 'YES' THEN 1 ELSE 0 END AS BIT) AS IsNullable
-             FROM INFORMATION_SCHEMA.COLUMNS c
-             LEFT JOIN (
-                 SELECT ku.COLUMN_NAME, ku.TABLE_NAME, ku.TABLE_SCHEMA
-                 FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS tc
-                 JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE ku
-                     ON tc.CONSTRAINT_NAME = ku.CONSTRAINT_NAME
-                     AND tc.TABLE_SCHEMA = ku.TABLE_SCHEMA
-                 WHERE tc.CONSTRAINT_TYPE = 'PRIMARY KEY'
-             ) pk ON pk.TABLE_NAME = c.TABLE_NAME
-                 AND pk.TABLE_SCHEMA = c.TABLE_SCHEMA
-                 AND pk.COLUMN_NAME = c.COLUMN_NAME
-             WHERE c.TABLE_NAME = '{tableName}'
-             ORDER BY c.ORDINAL_POSITION
-             """;
+        public IDbCommand CreateColumnMetadataCommand(IDbConnection connection, string tableName)
+        {
+            const string sql =
+                """
+                SELECT
+                    c.COLUMN_NAME AS ColumnName,
+                    c.DATA_TYPE AS DataType,
+                    CAST(CASE WHEN pk.COLUMN_NAME IS NOT NULL THEN 1 ELSE 0 END AS BIT) AS IsPrimaryKey,
+                    CAST(COLUMNPROPERTY(OBJECT_ID(c.TABLE_SCHEMA + '.' + c.TABLE_NAME), c.COLUMN_NAME, 'IsIdentity') AS BIT) AS IsIdentity,
+                    CAST(CASE WHEN c.IS_NULLABLE = 'YES' THEN 1 ELSE 0 END AS BIT) AS IsNullable
+                FROM INFORMATION_SCHEMA.COLUMNS c
+                LEFT JOIN (
+                    SELECT ku.COLUMN_NAME, ku.TABLE_NAME, ku.TABLE_SCHEMA
+                    FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS tc
+                    JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE ku
+                        ON tc.CONSTRAINT_NAME = ku.CONSTRAINT_NAME
+                        AND tc.TABLE_SCHEMA = ku.TABLE_SCHEMA
+                    WHERE tc.CONSTRAINT_TYPE = 'PRIMARY KEY'
+                ) pk ON pk.TABLE_NAME = c.TABLE_NAME
+                    AND pk.TABLE_SCHEMA = c.TABLE_SCHEMA
+                    AND pk.COLUMN_NAME = c.COLUMN_NAME
+                WHERE c.TABLE_NAME = @tableName
+                ORDER BY c.ORDINAL_POSITION
+                """;
+
+            var command = CreateCommand(sql, connection);
+            var param = command.CreateParameter();
+            param.ParameterName = $"{ParameterPrefix}tableName";
+            param.Value = tableName;
+            command.Parameters.Add(param);
+            return command;
+        }
     }
 }

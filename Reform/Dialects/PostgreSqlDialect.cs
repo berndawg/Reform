@@ -44,27 +44,37 @@ namespace Reform.Dialects
 
         public string GetExistsSql(string subquery) => $"SELECT EXISTS({subquery})";
 
-        public string GetColumnMetadataSql(string tableName) =>
-            $"""
-             SELECT
-                 c.column_name AS "ColumnName",
-                 c.data_type AS "DataType",
-                 CASE WHEN pk.column_name IS NOT NULL THEN 1 ELSE 0 END AS "IsPrimaryKey",
-                 CASE WHEN c.column_default LIKE 'nextval(%' OR c.is_identity = 'YES' THEN 1 ELSE 0 END AS "IsIdentity",
-                 CASE WHEN c.is_nullable = 'YES' THEN 1 ELSE 0 END AS "IsNullable"
-             FROM information_schema.columns c
-             LEFT JOIN (
-                 SELECT ku.column_name, ku.table_name, ku.table_schema
-                 FROM information_schema.table_constraints tc
-                 JOIN information_schema.key_column_usage ku
-                     ON tc.constraint_name = ku.constraint_name
-                     AND tc.table_schema = ku.table_schema
-                 WHERE tc.constraint_type = 'PRIMARY KEY'
-             ) pk ON pk.table_name = c.table_name
-                 AND pk.table_schema = c.table_schema
-                 AND pk.column_name = c.column_name
-             WHERE c.table_name = '{tableName}'
-             ORDER BY c.ordinal_position
-             """;
+        public IDbCommand CreateColumnMetadataCommand(IDbConnection connection, string tableName)
+        {
+            const string sql =
+                """
+                SELECT
+                    c.column_name AS "ColumnName",
+                    c.data_type AS "DataType",
+                    CASE WHEN pk.column_name IS NOT NULL THEN 1 ELSE 0 END AS "IsPrimaryKey",
+                    CASE WHEN c.column_default LIKE 'nextval(%' OR c.is_identity = 'YES' THEN 1 ELSE 0 END AS "IsIdentity",
+                    CASE WHEN c.is_nullable = 'YES' THEN 1 ELSE 0 END AS "IsNullable"
+                FROM information_schema.columns c
+                LEFT JOIN (
+                    SELECT ku.column_name, ku.table_name, ku.table_schema
+                    FROM information_schema.table_constraints tc
+                    JOIN information_schema.key_column_usage ku
+                        ON tc.constraint_name = ku.constraint_name
+                        AND tc.table_schema = ku.table_schema
+                    WHERE tc.constraint_type = 'PRIMARY KEY'
+                ) pk ON pk.table_name = c.table_name
+                    AND pk.table_schema = c.table_schema
+                    AND pk.column_name = c.column_name
+                WHERE c.table_name = @tableName
+                ORDER BY c.ordinal_position
+                """;
+
+            var command = CreateCommand(sql, connection);
+            var param = command.CreateParameter();
+            param.ParameterName = $"{ParameterPrefix}tableName";
+            param.Value = tableName;
+            command.Parameters.Add(param);
+            return command;
+        }
     }
 }

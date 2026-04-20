@@ -16,7 +16,7 @@ namespace Reform.Interfaces
         string GetTruncateSql(string tableName);
         string GetExistsSql(string subquery);
 
-        string GetColumnMetadataSql(string tableName) =>
+        IDbCommand CreateColumnMetadataCommand(IDbConnection connection, string tableName) =>
             throw new NotSupportedException("This dialect does not support schema metadata queries.");
     }
 }

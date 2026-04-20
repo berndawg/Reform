@@ -80,8 +80,7 @@ public sealed partial class CodeGenerator(IDialect dialect, IConnectionStringPro
         using var connection = dialect.CreateConnection(connectionString);
         connection.Open();
 
-        var sql = dialect.GetColumnMetadataSql(tableName);
-        using var command = dialect.CreateCommand(sql, connection);
+        using var command = dialect.CreateColumnMetadataCommand(connection, tableName);
 
         var columns = new List<ColumnInfo>();
         using var reader = command.ExecuteReader();

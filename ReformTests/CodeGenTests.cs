@@ -128,4 +128,13 @@ public class CodeGenTests : IDisposable
         Assert.Contains("public class Airport", result);
         Assert.Contains("[EntityMetadata(TableName = \"Airport\")]", result);
     }
+
+    [Fact]
+    public void CodeGen_TableName_With_Quote_Is_Safe()
+    {
+        Assert.Throws<InvalidOperationException>(
+            () => _factory.CodeGen("Country'; DROP TABLE Airport; --"));
+
+        Assert.Contains("public class Airport", _factory.CodeGen("Airport"));
+    }
 }
