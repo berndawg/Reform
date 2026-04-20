@@ -43,5 +43,16 @@ namespace Reform.Dialects
         public string GetTruncateSql(string tableName) => $"DELETE FROM {tableName}";
 
         public string GetExistsSql(string subquery) => $"SELECT EXISTS({subquery})";
+
+        public string GetColumnMetadataSql(string tableName) =>
+            $"""
+             SELECT
+                 name AS ColumnName,
+                 type AS DataType,
+                 pk AS IsPrimaryKey,
+                 CASE WHEN pk = 1 AND UPPER(type) = 'INTEGER' THEN 1 ELSE 0 END AS IsIdentity,
+                 CASE WHEN "notnull" = 0 AND pk = 0 THEN 1 ELSE 0 END AS IsNullable
+             FROM pragma_table_info('{tableName}')
+             """;
     }
 }

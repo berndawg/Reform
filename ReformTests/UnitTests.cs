@@ -35,9 +35,8 @@ namespace ReformTests
 
         private void CreateTables(SqliteConnection connection)
         {
-            using (var cmd = connection.CreateCommand())
-            {
-                cmd.CommandText = @"
+            using var cmd = connection.CreateCommand();
+            cmd.CommandText = @"
                     CREATE TABLE IF NOT EXISTS [Country] (
                         [CountryId] INTEGER PRIMARY KEY AUTOINCREMENT,
                         [CountryName] TEXT
@@ -51,8 +50,7 @@ namespace ReformTests
                     DELETE FROM [Airport];
                     DELETE FROM [Country];
                 ";
-                cmd.ExecuteNonQuery();
-            }
+            cmd.ExecuteNonQuery();
         }
 
         #region Sync Tests

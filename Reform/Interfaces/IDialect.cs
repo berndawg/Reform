@@ -15,5 +15,8 @@ namespace Reform.Interfaces
         string BooleanTrueLiteral { get; }
         string GetTruncateSql(string tableName);
         string GetExistsSql(string subquery);
+
+        string GetColumnMetadataSql(string tableName) =>
+            throw new NotSupportedException("This dialect does not support schema metadata queries.");
     }
 }

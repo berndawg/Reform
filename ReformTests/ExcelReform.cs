@@ -26,24 +26,22 @@ namespace ReformTests
         {
             OnValidate(null!, item);
 
-            using (var workbook = LoadOrCreateWorkbook())
+            using var workbook = LoadOrCreateWorkbook();
+            var worksheet = GetOrCreateWorksheet(workbook);
+            var nextRow = (worksheet.LastRowUsed()?.RowNumber() ?? 1) + 1;
+
+            // Auto-increment identity
+            var identityProp = _metadataProvider.AllProperties
+                .FirstOrDefault(p => p.IsIdentity);
+
+            if (identityProp != null)
             {
-                var worksheet = GetOrCreateWorksheet(workbook);
-                var nextRow = (worksheet.LastRowUsed()?.RowNumber() ?? 1) + 1;
-
-                // Auto-increment identity
-                var identityProp = _metadataProvider.AllProperties
-                    .FirstOrDefault(p => p.IsIdentity);
-
-                if (identityProp != null)
-                {
-                    var nextId = GetMaxIdentityValue(worksheet, identityProp) + 1;
-                    identityProp.SetPropertyValue(item, nextId);
-                }
-
-                WriteRow(worksheet, nextRow, item);
-                workbook.SaveAs(_filePath);
+                var nextId = GetMaxIdentityValue(worksheet, identityProp) + 1;
+                identityProp.SetPropertyValue(item, nextId);
             }
+
+            WriteRow(worksheet, nextRow, item);
+            workbook.SaveAs(_filePath);
         }
 
         public override void Insert(List<T> items)
@@ -56,29 +54,27 @@ namespace ReformTests
         {
             OnValidate(null!, item);
 
-            using (var workbook = LoadOrCreateWorkbook())
-            {
-                var worksheet = workbook.Worksheet(SheetName);
-                var pkProp = _metadataProvider.AllProperties.First(p => p.IsPrimaryKey);
-                var pkValue = pkProp.GetPropertyValue(item);
-                var pkCol = GetColumnIndex(worksheet, pkProp.ColumnName);
-                var lastRow = worksheet.LastRowUsed();
-                if (lastRow == null)
-                    throw new InvalidOperationException($"Expected to find 1 {typeof(T).Name} but found 0.");
-
-                for (var row = 2; row <= lastRow.RowNumber(); row++)
-                {
-                    var cellValue = ReadCellValue(worksheet.Cell(row, pkCol), pkProp.PropertyType);
-                    if (pkValue.Equals(cellValue))
-                    {
-                        WriteRow(worksheet, row, item);
-                        workbook.SaveAs(_filePath);
-                        return;
-                    }
-                }
-
+            using var workbook = LoadOrCreateWorkbook();
+            var worksheet = workbook.Worksheet(SheetName);
+            var pkProp = _metadataProvider.AllProperties.First(p => p.IsPrimaryKey);
+            var pkValue = pkProp.GetPropertyValue(item);
+            var pkCol = GetColumnIndex(worksheet, pkProp.ColumnName);
+            var lastRow = worksheet.LastRowUsed();
+            if (lastRow == null)
                 throw new InvalidOperationException($"Expected to find 1 {typeof(T).Name} but found 0.");
+
+            for (var row = 2; row <= lastRow.RowNumber(); row++)
+            {
+                var cellValue = ReadCellValue(worksheet.Cell(row, pkCol), pkProp.PropertyType);
+                if (pkValue.Equals(cellValue))
+                {
+                    WriteRow(worksheet, row, item);
+                    workbook.SaveAs(_filePath);
+                    return;
+                }
             }
+
+            throw new InvalidOperationException($"Expected to find 1 {typeof(T).Name} but found 0.");
         }
 
         public override void Update(List<T> list)
@@ -89,25 +85,23 @@ namespace ReformTests
 
         public override void Delete(T item)
         {
-            using (var workbook = LoadOrCreateWorkbook())
-            {
-                var worksheet = workbook.Worksheet(SheetName);
-                var pkProp = _metadataProvider.AllProperties.First(p => p.IsPrimaryKey);
-                var pkValue = pkProp.GetPropertyValue(item);
-                var pkCol = GetColumnIndex(worksheet, pkProp.ColumnName);
-                var lastRow = worksheet.LastRowUsed();
-                if (lastRow == null)
-                    return;
+            using var workbook = LoadOrCreateWorkbook();
+            var worksheet = workbook.Worksheet(SheetName);
+            var pkProp = _metadataProvider.AllProperties.First(p => p.IsPrimaryKey);
+            var pkValue = pkProp.GetPropertyValue(item);
+            var pkCol = GetColumnIndex(worksheet, pkProp.ColumnName);
+            var lastRow = worksheet.LastRowUsed();
+            if (lastRow == null)
+                return;
 
-                for (var row = 2; row <= lastRow.RowNumber(); row++)
+            for (var row = 2; row <= lastRow.RowNumber(); row++)
+            {
+                var cellValue = ReadCellValue(worksheet.Cell(row, pkCol), pkProp.PropertyType);
+                if (pkValue.Equals(cellValue))
                 {
-                    var cellValue = ReadCellValue(worksheet.Cell(row, pkCol), pkProp.PropertyType);
-                    if (pkValue.Equals(cellValue))
-                    {
-                        worksheet.Row(row).Delete();
-                        workbook.SaveAs(_filePath);
-                        return;
-                    }
+                    worksheet.Row(row).Delete();
+                    workbook.SaveAs(_filePath);
+                    return;
                 }
             }
         }
@@ -223,54 +217,52 @@ namespace ReformTests
             if (!System.IO.File.Exists(_filePath))
                 return new List<T>();
 
-            using (var workbook = new XLWorkbook(_filePath))
+            using var workbook = new XLWorkbook(_filePath);
+            if (!workbook.Worksheets.Contains(SheetName))
+                return new List<T>();
+
+            var worksheet = workbook.Worksheet(SheetName);
+            var lastRow = worksheet.LastRowUsed();
+
+            if (lastRow == null || lastRow.RowNumber() < 2)
+                return new List<T>();
+
+            // Build column map from header row
+            var columnMap = new Dictionary<int, PropertyMap>();
+            var headerRow = worksheet.Row(1);
+            var lastCol = worksheet.LastColumnUsed();
+            if (lastCol == null)
+                return new List<T>();
+
+            for (var col = 1; col <= lastCol.ColumnNumber(); col++)
             {
-                if (!workbook.Worksheets.Contains(SheetName))
-                    return new List<T>();
-
-                var worksheet = workbook.Worksheet(SheetName);
-                var lastRow = worksheet.LastRowUsed();
-
-                if (lastRow == null || lastRow.RowNumber() < 2)
-                    return new List<T>();
-
-                // Build column map from header row
-                var columnMap = new Dictionary<int, PropertyMap>();
-                var headerRow = worksheet.Row(1);
-                var lastCol = worksheet.LastColumnUsed();
-                if (lastCol == null)
-                    return new List<T>();
-
-                for (var col = 1; col <= lastCol.ColumnNumber(); col++)
-                {
-                    var columnName = headerRow.Cell(col).GetString();
-                    var propMap = _metadataProvider.GetPropertyMapByColumnName(columnName);
-                    if (propMap != null)
-                        columnMap[col] = propMap;
-                }
-
-                // Read data rows
-                var results = new List<T>();
-                for (var row = 2; row <= lastRow.RowNumber(); row++)
-                {
-                    var instance = (T)Activator.CreateInstance(typeof(T))!;
-
-                    foreach (var (col, propMap) in columnMap)
-                    {
-                        var cell = worksheet.Cell(row, col);
-                        if (!cell.IsEmpty())
-                        {
-                            var value = ReadCellValue(cell, propMap.PropertyType);
-                            if (value is not null)
-                                propMap.SetPropertyValue(instance, value);
-                        }
-                    }
-
-                    results.Add(instance);
-                }
-
-                return results;
+                var columnName = headerRow.Cell(col).GetString();
+                var propMap = _metadataProvider.GetPropertyMapByColumnName(columnName);
+                if (propMap != null)
+                    columnMap[col] = propMap;
             }
+
+            // Read data rows
+            var results = new List<T>();
+            for (var row = 2; row <= lastRow.RowNumber(); row++)
+            {
+                var instance = (T)Activator.CreateInstance(typeof(T))!;
+
+                foreach (var (col, propMap) in columnMap)
+                {
+                    var cell = worksheet.Cell(row, col);
+                    if (!cell.IsEmpty())
+                    {
+                        var value = ReadCellValue(cell, propMap.PropertyType);
+                        if (value is not null)
+                            propMap.SetPropertyValue(instance, value);
+                    }
+                }
+
+                results.Add(instance);
+            }
+
+            return results;
         }
 
         private static object? ReadCellValue(IXLCell cell, Type targetType)

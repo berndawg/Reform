@@ -43,5 +43,19 @@ namespace Reform.Dialects
         public string GetTruncateSql(string tableName) => $"TRUNCATE TABLE {tableName}";
 
         public string GetExistsSql(string subquery) => $"SELECT EXISTS({subquery})";
+
+        public string GetColumnMetadataSql(string tableName) =>
+            $"""
+             SELECT
+                 c.COLUMN_NAME AS ColumnName,
+                 c.DATA_TYPE AS DataType,
+                 CASE WHEN c.COLUMN_KEY = 'PRI' THEN 1 ELSE 0 END AS IsPrimaryKey,
+                 CASE WHEN c.EXTRA LIKE '%auto_increment%' THEN 1 ELSE 0 END AS IsIdentity,
+                 CASE WHEN c.IS_NULLABLE = 'YES' THEN 1 ELSE 0 END AS IsNullable
+             FROM INFORMATION_SCHEMA.COLUMNS c
+             WHERE c.TABLE_NAME = '{tableName}'
+                 AND c.TABLE_SCHEMA = DATABASE()
+             ORDER BY c.ORDINAL_POSITION
+             """;
     }
 }

@@ -1,5 +1,3 @@
-using System;
-using System.Threading.Tasks;
 using Reform;
 using Reform.Interfaces;
 
@@ -8,11 +6,11 @@ namespace ReformIntegrationTests
     internal class Program
     {
         private const string DefaultConnectionString =
-            "Server=.\\SQLEXPRESS;Database=ReformIntegrationTest;Trusted_Connection=True;TrustServerCertificate=True;";
-
+            "Server=127.0.0.1;Port=33063;Database=ReformIntegrationTest;uid=root;pwd=pwd;";
+            
         static async Task<int> Main(string[] args)
         {
-            string connectionString = ResolveConnectionString(args);
+            var connectionString = ResolveConnectionString(args);
 
             Console.WriteLine($"Connection: {connectionString}");
             Console.WriteLine();
@@ -31,15 +29,15 @@ namespace ReformIntegrationTests
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine($"Database setup failed: {ex.Message}");
                 Console.WriteLine();
-                Console.WriteLine("Ensure SQL Server Express is installed and running.");
+                Console.WriteLine("Ensure MySQL is installed and running.");
                 Console.WriteLine("You can specify a connection string with:");
-                Console.WriteLine("  --connection-string \"Server=.\\SQLEXPRESS;Database=ReformIntegrationTest;Trusted_Connection=True;TrustServerCertificate=True;\"");
+                Console.WriteLine("  --connection-string \"Server=127.0.0.1;Port=33063;Database=ReformIntegrationTest;uid=root;pwd=pwd;\"");
                 Console.ResetColor();
                 return 1;
             }
 
             using var reformer = new Reformer()
-                .UseSqlServer(connectionString)
+                .UseMySql(connectionString)
                 .Register(typeof(IDebugLogger), typeof(ConsoleDebugLogger))
                 .Build();
 
@@ -61,13 +59,13 @@ namespace ReformIntegrationTests
 
         private static string ResolveConnectionString(string[] args)
         {
-            for (int i = 0; i < args.Length - 1; i++)
+            for (var i = 0; i < args.Length - 1; i++)
             {
                 if (args[i] == "--connection-string")
                     return args[i + 1];
             }
 
-            string envValue = Environment.GetEnvironmentVariable("REFORM_TEST_CONNECTION_STRING");
+            var envValue = Environment.GetEnvironmentVariable("REFORM_TEST_CONNECTION_STRING");
             if (!string.IsNullOrEmpty(envValue))
                 return envValue;
 
