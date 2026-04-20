@@ -52,7 +52,7 @@ namespace Reform.Dialects
                     c.COLUMN_NAME AS ColumnName,
                     c.DATA_TYPE AS DataType,
                     CASE WHEN c.COLUMN_KEY = 'PRI' THEN 1 ELSE 0 END AS IsPrimaryKey,
-                    CASE WHEN c.EXTRA LIKE '%auto_increment%' THEN 1 ELSE 0 END AS IsIdentity,
+                    CASE WHEN LOWER(c.EXTRA) LIKE '%auto_increment%' THEN 1 ELSE 0 END AS IsIdentity,
                     CASE WHEN c.IS_NULLABLE = 'YES' THEN 1 ELSE 0 END AS IsNullable
                 FROM INFORMATION_SCHEMA.COLUMNS c
                 WHERE c.TABLE_NAME = @tableName
