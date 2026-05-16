@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <PackageId>Reform.Excel</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>Bernie Seabrook</Authors>
+    <Company>Bernie Seabrook</Company>
+    <Product>Reform.Excel</Product>
+    <Description>Excel backend for the Reform repository framework. Implements IReform&lt;T&gt; over .xlsx files via ClosedXML.</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <NeutralLanguage>en</NeutralLanguage>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Reform\Reform.csproj" />
+    <PackageReference Include="ClosedXML" Version="0.105.0" />
+  </ItemGroup>
+
+</Project>
