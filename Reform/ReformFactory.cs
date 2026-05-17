@@ -22,6 +22,11 @@ public class ReformFactory : IDisposable
         return _serviceProvider.GetRequiredService<T>();
     }
 
+    public string CodeGen(string tableName)
+    {
+        return Resolve<ICodeGenerator>().CodeGen(tableName);
+    }
+
     public void Dispose()
     {
         _serviceProvider?.Dispose();

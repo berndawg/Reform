@@ -1,7 +1,4 @@
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Threading.Tasks;
 
 namespace ReformIntegrationTests
 {
@@ -70,7 +67,7 @@ namespace ReformIntegrationTests
             return failed == 0 ? 0 : 1;
         }
 
-        private static void WriteResult(string name, bool passed, TimeSpan elapsed, string error)
+        private static void WriteResult(string name, bool passed, TimeSpan elapsed, string? error)
         {
             Console.ForegroundColor = passed ? ConsoleColor.Green : ConsoleColor.Red;
             Console.Write(passed ? "  [PASS] " : "  [FAIL] ");

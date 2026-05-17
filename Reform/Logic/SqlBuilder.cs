@@ -206,7 +206,7 @@ namespace Reform.Logic
             return stringBuilder.ToString();
         }
 
-        private string AddParameter(Dictionary<string, object> parameters, PropertyMap propertyMap, object instance)
+        private static string AddParameter(Dictionary<string, object> parameters, PropertyMap propertyMap, object instance)
         {
             var paramValue = propertyMap.GetPropertyValue(instance);
 

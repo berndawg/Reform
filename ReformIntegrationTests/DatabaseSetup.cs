@@ -1,5 +1,4 @@
-using System;
-using Microsoft.Data.SqlClient;
+using MySqlConnector;
 
 namespace ReformIntegrationTests
 {
@@ -7,48 +6,44 @@ namespace ReformIntegrationTests
     {
         public static void EnsureDatabase(string connectionString)
         {
-            var builder = new SqlConnectionStringBuilder(connectionString);
-            string databaseName = builder.InitialCatalog;
-            builder.InitialCatalog = "master";
+            var builder = new MySqlConnectionStringBuilder(connectionString);
+            var databaseName = builder.Database;
+            builder.Database = "";
 
-            using var connection = new SqlConnection(builder.ConnectionString);
+            using var connection = new MySqlConnection(builder.ConnectionString);
             connection.Open();
             using var cmd = connection.CreateCommand();
-            cmd.CommandText = $@"
-                IF DB_ID('{databaseName}') IS NULL
-                    CREATE DATABASE [{databaseName}];";
+            cmd.CommandText = $"CREATE DATABASE IF NOT EXISTS `{databaseName}`;";
             cmd.ExecuteNonQuery();
         }
 
         public static void EnsureTables(string connectionString)
         {
-            using var connection = new SqlConnection(connectionString);
+            using var connection = new MySqlConnection(connectionString);
             connection.Open();
             using var cmd = connection.CreateCommand();
             cmd.CommandText = @"
-                IF OBJECT_ID('dbo.Country', 'U') IS NULL
-                CREATE TABLE [dbo].[Country] (
-                    [CountryId] INT NOT NULL PRIMARY KEY IDENTITY,
-                    [CountryName] VARCHAR(200) NOT NULL
+                CREATE TABLE IF NOT EXISTS `Country` (
+                    `CountryId` INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
+                    `CountryName` VARCHAR(200) NOT NULL
                 );
 
-                IF OBJECT_ID('dbo.Airport', 'U') IS NULL
-                CREATE TABLE [dbo].[Airport] (
-                    [AirportId] INT IDENTITY(1,1) NOT NULL,
-                    [AirportCode] VARCHAR(10) NOT NULL,
-                    [AirportName] VARCHAR(50) NOT NULL,
-                    [CountryId] INT NOT NULL,
-                    CONSTRAINT [PK_Airport] PRIMARY KEY CLUSTERED ([AirportId] ASC)
+                CREATE TABLE IF NOT EXISTS `Airport` (
+                    `AirportId` INT NOT NULL AUTO_INCREMENT,
+                    `AirportCode` VARCHAR(10) NOT NULL,
+                    `AirportName` VARCHAR(50) NOT NULL,
+                    `CountryId` INT NOT NULL,
+                    PRIMARY KEY (`AirportId`)
                 );";
             cmd.ExecuteNonQuery();
         }
 
         public static void CleanTables(string connectionString)
         {
-            using var connection = new SqlConnection(connectionString);
+            using var connection = new MySqlConnection(connectionString);
             connection.Open();
             using var cmd = connection.CreateCommand();
-            cmd.CommandText = "DELETE FROM [Airport]; DELETE FROM [Country];";
+            cmd.CommandText = "DELETE FROM `Airport`; DELETE FROM `Country`;";
             cmd.ExecuteNonQuery();
         }
     }

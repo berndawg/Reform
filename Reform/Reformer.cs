@@ -76,6 +76,7 @@ namespace Reform
             services.AddSingleton(typeof(ICommandBuilder<>), typeof(CommandBuilder<>));
             services.AddSingleton(typeof(ISqlBuilder<>), typeof(SqlBuilder<>));
             services.AddSingleton(typeof(IValidator<>), typeof(Validator<>));
+            services.AddSingleton<ICodeGenerator, CodeGenerator>();
 
             // Custom type registrations (override defaults)
             foreach (var (serviceType, implType) in _registrations)

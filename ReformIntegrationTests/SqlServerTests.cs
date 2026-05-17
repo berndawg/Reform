@@ -1,23 +1,11 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using Reform;
 using Reform.Interfaces;
 using ReformIntegrationTests.Objects;
 
 namespace ReformIntegrationTests
 {
-    internal class SqlServerTests
+    internal class SqlServerTests(ReformFactory reformFactory, string connectionString)
     {
-        private readonly ReformFactory _reformer;
-        private readonly string _connectionString;
-
-        public SqlServerTests(ReformFactory reformer, string connectionString)
-        {
-            _reformer = reformer;
-            _connectionString = connectionString;
-        }
-
         public void RunAll(TestRunner runner)
         {
             runner.Run("Insert_And_Count", Insert_And_Count);
@@ -48,14 +36,14 @@ namespace ReformIntegrationTests
             runner.Run("Transaction_Rollback", Transaction_Rollback);
         }
 
-        private void Clean() => DatabaseSetup.CleanTables(_connectionString);
+        private void Clean() => DatabaseSetup.CleanTables(connectionString);
 
         #region CRUD
 
         private void Insert_And_Count()
         {
             Clean();
-            IReform<Country> countryLogic = _reformer.For<Country>();
+            var countryLogic = reformFactory.For<Country>();
 
             countryLogic.Insert(new Country { CountryName = "Morocco" });
             countryLogic.Insert(new Country { CountryName = "United States" });
@@ -67,15 +55,15 @@ namespace ReformIntegrationTests
         private void Count_With_Predicate()
         {
             Clean();
-            IReform<Country> countryLogic = _reformer.For<Country>();
-            IReform<Airport> airportLogic = _reformer.For<Airport>();
+            var countryLogic = reformFactory.For<Country>();
+            var airportLogic = reformFactory.For<Airport>();
 
             countryLogic.Insert(new Country { CountryName = "USA" });
             countryLogic.Insert(new Country { CountryName = "Peru" });
 
             var countries = countryLogic.Select().ToList();
-            int usaId = countries.First(c => c.CountryName == "USA").CountryId;
-            int peruId = countries.First(c => c.CountryName == "Peru").CountryId;
+            var usaId = countries.First(c => c.CountryName == "USA").CountryId;
+            var peruId = countries.First(c => c.CountryName == "Peru").CountryId;
 
             airportLogic.Insert(new Airport { AirportCode = "LAX", AirportName = "Los Angeles", CountryId = usaId });
             airportLogic.Insert(new Airport { AirportCode = "AUS", AirportName = "Austin", CountryId = usaId });
@@ -88,7 +76,7 @@ namespace ReformIntegrationTests
         private void Exists_Returns_True_When_Found()
         {
             Clean();
-            IReform<Airport> airportLogic = _reformer.For<Airport>();
+            var airportLogic = reformFactory.For<Airport>();
 
             airportLogic.Insert(new Airport { AirportCode = "RAK", AirportName = "Marrakesh", CountryId = 1 });
 
@@ -98,7 +86,7 @@ namespace ReformIntegrationTests
         private void Exists_Returns_False_When_Not_Found()
         {
             Clean();
-            IReform<Airport> airportLogic = _reformer.For<Airport>();
+            var airportLogic = reformFactory.For<Airport>();
 
             Assert.False(airportLogic.Exists(x => x.AirportCode == "NONEXISTENT"));
         }
@@ -106,7 +94,7 @@ namespace ReformIntegrationTests
         private void Select_All()
         {
             Clean();
-            IReform<Country> countryLogic = _reformer.For<Country>();
+            var countryLogic = reformFactory.For<Country>();
 
             countryLogic.Insert(new Country { CountryName = "France" });
             countryLogic.Insert(new Country { CountryName = "Germany" });
@@ -118,7 +106,7 @@ namespace ReformIntegrationTests
         private void Select_With_Lambda()
         {
             Clean();
-            IReform<Airport> airportLogic = _reformer.For<Airport>();
+            var airportLogic = reformFactory.For<Airport>();
 
             airportLogic.Insert(new Airport { AirportCode = "CDG", AirportName = "Charles de Gaulle", CountryId = 10 });
             airportLogic.Insert(new Airport { AirportCode = "ORY", AirportName = "Orly", CountryId = 10 });
@@ -131,27 +119,27 @@ namespace ReformIntegrationTests
         private void SelectSingle()
         {
             Clean();
-            IReform<Airport> airportLogic = _reformer.For<Airport>();
+            var airportLogic = reformFactory.For<Airport>();
 
             airportLogic.Insert(new Airport { AirportCode = "NRT", AirportName = "Narita", CountryId = 30 });
 
-            Airport airport = airportLogic.SelectSingle(x => x.AirportCode == "NRT");
+            var airport = airportLogic.SelectSingle(x => x.AirportCode == "NRT");
             Assert.Equal("Narita", airport.AirportName);
         }
 
         private void SelectSingleOrDefault_Returns_Null()
         {
             Clean();
-            IReform<Airport> airportLogic = _reformer.For<Airport>();
+            var airportLogic = reformFactory.For<Airport>();
 
-            Airport airport = airportLogic.SelectSingleOrDefault(x => x.AirportCode == "ZZZZZ");
+            var airport = airportLogic.SelectSingleOrDefault(x => x.AirportCode == "ZZZZZ");
             Assert.Null(airport);
         }
 
         private void Update_Modifies_Record()
         {
             Clean();
-            IReform<Country> countryLogic = _reformer.For<Country>();
+            var countryLogic = reformFactory.For<Country>();
 
             var country = new Country { CountryName = "Moroco" };
             countryLogic.Insert(country);
@@ -159,28 +147,28 @@ namespace ReformIntegrationTests
             country.CountryName = "Morocco";
             countryLogic.Update(country);
 
-            Country updated = countryLogic.SelectSingle(x => x.CountryId == country.CountryId);
+            var updated = countryLogic.SelectSingle(x => x.CountryId == country.CountryId);
             Assert.Equal("Morocco", updated.CountryName);
         }
 
         private void Update_No_Changes_Is_Noop()
         {
             Clean();
-            IReform<Country> countryLogic = _reformer.For<Country>();
+            var countryLogic = reformFactory.For<Country>();
 
             var country = new Country { CountryName = "France" };
             countryLogic.Insert(country);
 
             countryLogic.Update(country);
 
-            Country result = countryLogic.SelectSingle(x => x.CountryId == country.CountryId);
+            var result = countryLogic.SelectSingle(x => x.CountryId == country.CountryId);
             Assert.Equal("France", result.CountryName);
         }
 
         private void Delete_Removes_Record()
         {
             Clean();
-            IReform<Airport> airportLogic = _reformer.For<Airport>();
+            var airportLogic = reformFactory.For<Airport>();
 
             var airport = new Airport { AirportCode = "DEL", AirportName = "Delhi", CountryId = 40 };
             airportLogic.Insert(airport);
@@ -195,7 +183,7 @@ namespace ReformIntegrationTests
         private void Delete_List_Removes_Multiple()
         {
             Clean();
-            IReform<Airport> airportLogic = _reformer.For<Airport>();
+            var airportLogic = reformFactory.For<Airport>();
 
             var a1 = new Airport { AirportCode = "XX1", AirportName = "Test1", CountryId = 50 };
             var a2 = new Airport { AirportCode = "XX2", AirportName = "Test2", CountryId = 50 };
@@ -214,9 +202,9 @@ namespace ReformIntegrationTests
         private void Insert_List_Inserts_Multiple()
         {
             Clean();
-            IReform<Country> countryLogic = _reformer.For<Country>();
+            var countryLogic = reformFactory.For<Country>();
 
-            int before = countryLogic.Count();
+            var before = countryLogic.Count();
 
             countryLogic.Insert(new List<Country>
             {
@@ -224,14 +212,14 @@ namespace ReformIntegrationTests
                 new Country { CountryName = "Brazil" }
             });
 
-            int after = countryLogic.Count();
+            var after = countryLogic.Count();
             Assert.Equal(before + 2, after);
         }
 
         private void Select_With_And_Predicate()
         {
             Clean();
-            IReform<Airport> airportLogic = _reformer.For<Airport>();
+            var airportLogic = reformFactory.For<Airport>();
 
             airportLogic.Insert(new Airport { AirportCode = "JFK", AirportName = "John F Kennedy", CountryId = 100 });
             airportLogic.Insert(new Airport { AirportCode = "EWR", AirportName = "Newark", CountryId = 100 });
@@ -244,7 +232,7 @@ namespace ReformIntegrationTests
         private void Select_With_Or_Predicate()
         {
             Clean();
-            IReform<Airport> airportLogic = _reformer.For<Airport>();
+            var airportLogic = reformFactory.For<Airport>();
 
             airportLogic.Insert(new Airport { AirportCode = "SYD", AirportName = "Sydney", CountryId = 200 });
             airportLogic.Insert(new Airport { AirportCode = "MEL", AirportName = "Melbourne", CountryId = 200 });
@@ -261,7 +249,7 @@ namespace ReformIntegrationTests
         private void Validation_Throws_On_Missing_Required_Field()
         {
             Clean();
-            IReform<Airport> airportLogic = _reformer.For<Airport>();
+            var airportLogic = reformFactory.For<Airport>();
 
             var airport = new Airport { AirportCode = "", AirportName = "Test", CountryId = 1 };
 
@@ -271,7 +259,7 @@ namespace ReformIntegrationTests
         private void Validation_Throws_On_Default_Required_Int()
         {
             Clean();
-            IReform<Airport> airportLogic = _reformer.For<Airport>();
+            var airportLogic = reformFactory.For<Airport>();
 
             var airport = new Airport { AirportCode = "TST", AirportName = "Test", CountryId = 0 };
 
@@ -285,7 +273,7 @@ namespace ReformIntegrationTests
         private void Merge_Inserts_New_Items()
         {
             Clean();
-            IReform<Country> countryLogic = _reformer.For<Country>();
+            var countryLogic = reformFactory.For<Country>();
 
             countryLogic.Merge(new List<Country>
             {
@@ -301,23 +289,23 @@ namespace ReformIntegrationTests
         private void Merge_Updates_Existing_Items()
         {
             Clean();
-            IReform<Country> countryLogic = _reformer.For<Country>();
+            var countryLogic = reformFactory.For<Country>();
 
             countryLogic.Insert(new Country { CountryName = "France" });
-            Country france = countryLogic.SelectSingle(x => x.CountryName == "France");
+            var france = countryLogic.SelectSingle(x => x.CountryName == "France");
 
             france.CountryName = "French Republic";
             countryLogic.Merge(new List<Country> { france });
 
             Assert.Equal(1, countryLogic.Count());
-            Country updated = countryLogic.SelectSingle(x => x.CountryId == france.CountryId);
+            var updated = countryLogic.SelectSingle(x => x.CountryId == france.CountryId);
             Assert.Equal("French Republic", updated.CountryName);
         }
 
         private void Merge_Deletes_Missing_Items()
         {
             Clean();
-            IReform<Country> countryLogic = _reformer.For<Country>();
+            var countryLogic = reformFactory.For<Country>();
 
             countryLogic.Insert(new List<Country>
             {
@@ -326,7 +314,7 @@ namespace ReformIntegrationTests
                 new Country { CountryName = "Spain" }
             });
 
-            Country france = countryLogic.SelectSingle(x => x.CountryName == "France");
+            var france = countryLogic.SelectSingle(x => x.CountryName == "France");
 
             countryLogic.Merge(new List<Country> { france });
 
@@ -339,7 +327,7 @@ namespace ReformIntegrationTests
         private void Merge_Full_Reconciliation()
         {
             Clean();
-            IReform<Country> countryLogic = _reformer.For<Country>();
+            var countryLogic = reformFactory.For<Country>();
 
             countryLogic.Insert(new List<Country>
             {
@@ -348,10 +336,10 @@ namespace ReformIntegrationTests
                 new Country { CountryName = "Spain" }
             });
 
-            Country france = countryLogic.SelectSingle(x => x.CountryName == "France");
+            var france = countryLogic.SelectSingle(x => x.CountryName == "France");
             france.CountryName = "French Republic";
 
-            Country germany = countryLogic.SelectSingle(x => x.CountryName == "Germany");
+            var germany = countryLogic.SelectSingle(x => x.CountryName == "Germany");
 
             countryLogic.Merge(new List<Country>
             {
@@ -371,7 +359,7 @@ namespace ReformIntegrationTests
         private void Merge_Empty_List_Throws()
         {
             Clean();
-            IReform<Country> countryLogic = _reformer.For<Country>();
+            var countryLogic = reformFactory.For<Country>();
 
             countryLogic.Insert(new List<Country>
             {
@@ -387,7 +375,7 @@ namespace ReformIntegrationTests
         private void Merge_With_No_Changes()
         {
             Clean();
-            IReform<Country> countryLogic = _reformer.For<Country>();
+            var countryLogic = reformFactory.For<Country>();
 
             countryLogic.Insert(new List<Country>
             {
@@ -411,7 +399,7 @@ namespace ReformIntegrationTests
         private void Truncate_Removes_All_Rows()
         {
             Clean();
-            IReform<Country> countryLogic = _reformer.For<Country>();
+            var countryLogic = reformFactory.For<Country>();
 
             countryLogic.Insert(new List<Country>
             {
@@ -433,7 +421,7 @@ namespace ReformIntegrationTests
         private void Transaction_Insert_Update_Delete()
         {
             Clean();
-            IReform<Country> countryLogic = _reformer.For<Country>();
+            var countryLogic = reformFactory.For<Country>();
 
             using (var connection = countryLogic.GetConnection())
             {
@@ -476,9 +464,9 @@ namespace ReformIntegrationTests
         private void Transaction_Rollback()
         {
             Clean();
-            IReform<Country> countryLogic = _reformer.For<Country>();
+            var countryLogic = reformFactory.For<Country>();
 
-            int countBefore = countryLogic.Count();
+            var countBefore = countryLogic.Count();
 
             using (var connection = countryLogic.GetConnection())
             {

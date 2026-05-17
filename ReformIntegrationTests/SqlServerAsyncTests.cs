@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using Reform;
 using Reform.Interfaces;
 using ReformIntegrationTests.Objects;
@@ -37,7 +33,7 @@ namespace ReformIntegrationTests
         private async Task Insert_And_Count_Async()
         {
             Clean();
-            IReform<Country> countryLogic = _reformer.For<Country>();
+            var countryLogic = _reformer.For<Country>();
 
             await countryLogic.InsertAsync(new Country { CountryName = "Argentina" });
             await countryLogic.InsertAsync(new Country { CountryName = "Chile" });
@@ -48,7 +44,7 @@ namespace ReformIntegrationTests
         private async Task Select_Async()
         {
             Clean();
-            IReform<Airport> airportLogic = _reformer.For<Airport>();
+            var airportLogic = _reformer.For<Airport>();
 
             await airportLogic.InsertAsync(new Airport { AirportCode = "GRU", AirportName = "Guarulhos", CountryId = 300 });
             await airportLogic.InsertAsync(new Airport { AirportCode = "GIG", AirportName = "Galeao", CountryId = 300 });
@@ -60,7 +56,7 @@ namespace ReformIntegrationTests
         private async Task Update_Async()
         {
             Clean();
-            IReform<Country> countryLogic = _reformer.For<Country>();
+            var countryLogic = _reformer.For<Country>();
 
             var country = new Country { CountryName = "Barzil" };
             await countryLogic.InsertAsync(country);
@@ -68,14 +64,14 @@ namespace ReformIntegrationTests
             country.CountryName = "Brazil";
             await countryLogic.UpdateAsync(country);
 
-            Country updated = await countryLogic.SelectSingleAsync(x => x.CountryId == country.CountryId);
+            var updated = await countryLogic.SelectSingleAsync(x => x.CountryId == country.CountryId);
             Assert.Equal("Brazil", updated.CountryName);
         }
 
         private async Task Delete_Async()
         {
             Clean();
-            IReform<Airport> airportLogic = _reformer.For<Airport>();
+            var airportLogic = _reformer.For<Airport>();
 
             var airport = new Airport { AirportCode = "EZE", AirportName = "Ezeiza", CountryId = 400 };
             await airportLogic.InsertAsync(airport);
@@ -90,16 +86,16 @@ namespace ReformIntegrationTests
         private async Task SelectSingleOrDefault_Async_Returns_Null()
         {
             Clean();
-            IReform<Airport> airportLogic = _reformer.For<Airport>();
+            var airportLogic = _reformer.For<Airport>();
 
-            Airport airport = await airportLogic.SelectSingleOrDefaultAsync(x => x.AirportCode == "NOPE");
+            var airport = await airportLogic.SelectSingleOrDefaultAsync(x => x.AirportCode == "NOPE");
             Assert.Null(airport);
         }
 
         private async Task Exists_Async_Returns_False_When_Not_Found()
         {
             Clean();
-            IReform<Airport> airportLogic = _reformer.For<Airport>();
+            var airportLogic = _reformer.For<Airport>();
 
             Assert.False(await airportLogic.ExistsAsync(x => x.AirportCode == "NONEXISTENT"));
         }
@@ -107,7 +103,7 @@ namespace ReformIntegrationTests
         private async Task Merge_Async()
         {
             Clean();
-            IReform<Country> countryLogic = _reformer.For<Country>();
+            var countryLogic = _reformer.For<Country>();
 
             await countryLogic.InsertAsync(new List<Country>
             {
@@ -116,7 +112,7 @@ namespace ReformIntegrationTests
                 new Country { CountryName = "Spain" }
             });
 
-            Country france = await countryLogic.SelectSingleAsync(x => x.CountryName == "France");
+            var france = await countryLogic.SelectSingleAsync(x => x.CountryName == "France");
             france.CountryName = "French Republic";
 
             await countryLogic.MergeAsync(new List<Country>
@@ -135,7 +131,7 @@ namespace ReformIntegrationTests
         private async Task Truncate_Async()
         {
             Clean();
-            IReform<Country> countryLogic = _reformer.For<Country>();
+            var countryLogic = _reformer.For<Country>();
 
             await countryLogic.InsertAsync(new List<Country>
             {
@@ -153,7 +149,7 @@ namespace ReformIntegrationTests
         private async Task Transaction_Async_Insert_Update_Delete()
         {
             Clean();
-            IReform<Country> countryLogic = _reformer.For<Country>();
+            var countryLogic = _reformer.For<Country>();
 
             using (var connection = countryLogic.GetConnection())
             {
