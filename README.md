@@ -1,6 +1,6 @@
 # Reform
 
-Reform is a lightweight repository framework for .NET. Define POCOs, add Reform attributes, and use the `IReform<T>` interface for all your data operations. It supports SQLite, SQL Server, MySQL, and PostgreSQL out of the box, and is fully extensible to any backing store via virtual method overrides.
+Reform is a lightweight repository framework for .NET. Define POCOs, add Reform attributes, and use the `IReform<T>` interface for all your data operations. It supports SQLite, SQL Server, MySQL, and PostgreSQL out of the box. Customize by swapping internal services through DI, or implement `IReform<T>` directly for non-database backends — see the companion `Reform.Excel` package for a worked example.
 
 ## Getting Started
 
@@ -17,7 +17,7 @@ public class Country
     public int CountryId { get; set; }
 
     [PropertyMetadata(ColumnName = "CountryName")]
-    public string CountryName { get; set; }
+    public string? CountryName { get; set; }
 }
 
 // Configure and build
@@ -176,4 +176,4 @@ IReform<Country> countries = factory.For<Country>();
 countries.Insert(new Country { CountryName = "France" });
 ```
 
-Excel and SQL backends can coexist in the same factory — `UseExcel<T>` overrides the default `IReform<T>` only for the specified entity type. The Excel backend does not participate in `IDbConnection` transactions; the connection-taking overloads of `Insert`/`Update`/`Delete` throw `NotSupportedException`.
+Excel and SQL backends can coexist in the same factory — `UseExcel<T>` overrides the default `IReform<T>` only for the specified entity type. The Excel backend does not participate in `IDbConnection` transactions; `GetConnection()` and the connection-taking overloads of `Insert`/`Update`/`Delete` throw `NotSupportedException`.
