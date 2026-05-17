@@ -11,6 +11,7 @@ namespace Reform
         private string? _connectionString;
         private readonly Dictionary<Type, Type> _registrations = new();
         private readonly Dictionary<Type, object> _instances = new();
+        private readonly Dictionary<Type, Func<IServiceProvider, object>> _factories = new();
 
         public Reformer UseSqlite(string? connectionString = null)
         {
@@ -52,6 +53,12 @@ namespace Reform
             return this;
         }
 
+        public Reformer Register<TService>(Func<IServiceProvider, TService> factory) where TService : notnull
+        {
+            _factories[typeof(TService)] = sp => factory(sp);
+            return this;
+        }
+
         internal void SetDialect(Type dialectType)
         {
             _dialectType = dialectType;
@@ -85,6 +92,10 @@ namespace Reform
             // Custom instance registrations (override defaults)
             foreach (var (serviceType, instance) in _instances)
                 services.AddSingleton(serviceType, instance);
+
+            // Custom factory registrations (override defaults, including instance/type registrations above)
+            foreach (var (serviceType, factory) in _factories)
+                services.AddSingleton(serviceType, factory);
 
             return new ReformFactory(services.BuildServiceProvider());
         }

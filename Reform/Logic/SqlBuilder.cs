@@ -8,18 +8,10 @@ using Reform.Objects;
 [assembly: InternalsVisibleTo("ReformTests")]
 namespace Reform.Logic
 {
-    public sealed class SqlBuilder<T> : ISqlBuilder<T> where T : class
+    public sealed class SqlBuilder<T>(IMetadataProvider<T> metadataProvider, IDialect dialect) : ISqlBuilder<T>
+        where T : class
     {
-        private readonly IMetadataProvider<T> _metadataProvider;
-        private readonly IDialect _dialect;
-        private readonly WhereClauseBuilder<T> _whereClauseBuilder;
-
-        public SqlBuilder(IMetadataProvider<T> metadataProvider, IDialect dialect)
-        {
-            _metadataProvider = metadataProvider;
-            _dialect = dialect;
-            _whereClauseBuilder = new WhereClauseBuilder<T>(metadataProvider, dialect);
-        }
+        private readonly WhereClauseBuilder<T> _whereClauseBuilder = new(metadataProvider, dialect);
 
         public string GetCountSql(Expression<Func<T, bool>>? predicate, out Dictionary<string, object> parameters)
         {
@@ -40,23 +32,23 @@ namespace Reform.Logic
             var fromClause = GetFromClause();
             var where = string.IsNullOrEmpty(whereClause) ? "" : $" WHERE {whereClause}";
 
-            return _dialect.GetExistsSql($"SELECT 1{fromClause}{where}");
+            return dialect.GetExistsSql($"SELECT 1{fromClause}{where}");
         }
 
         public string GetSelectSql(QueryCriteria<T> queryCriteria, ref Dictionary<string, object> parameters)
         {
             var pageCriteria = queryCriteria.PageCriteria;
-            var doPaging = pageCriteria != null && pageCriteria.PageSize != 0 && pageCriteria.Page != 0;
+            var doPaging = pageCriteria.PageSize != 0 && pageCriteria.Page != 0;
 
             return doPaging
-                ? GetSelectSqlPaged(pageCriteria!, ref parameters, queryCriteria)
+                ? GetSelectSqlPaged(pageCriteria, ref parameters, queryCriteria)
                 : GetSelectSqlNonPaged(ref parameters, queryCriteria);
         }
 
         public string GetInsertSql(T instance, ref Dictionary<string, object> parameters)
         {
             var tableName = GetTableName();
-            var columnNames = GetColumnNames(_metadataProvider.UpdateableProperties);
+            var columnNames = GetColumnNames(metadataProvider.UpdateableProperties);
             var values = GetValuesForInsert(instance, ref parameters);
 
             return $"INSERT INTO {tableName} ({columnNames}) VALUES ({values})";
@@ -93,7 +85,7 @@ namespace Reform.Logic
 
         public string GetTruncateSql()
         {
-            return _dialect.GetTruncateSql(GetTableName());
+            return dialect.GetTruncateSql(GetTableName());
         }
 
         private (string sql, Dictionary<string, object> parameters) BuildWhereClause(Expression<Func<T, bool>>? predicate, int startingIndex = 0)
@@ -103,7 +95,7 @@ namespace Reform.Logic
 
         private string GetSelectSqlNonPaged(ref Dictionary<string, object> parameters, QueryCriteria<T> queryCriteria)
         {
-            var columnNames = GetColumnNames(_metadataProvider.AllProperties);
+            var columnNames = GetColumnNames(metadataProvider.AllProperties);
             var fromClause = GetFromClause();
 
             var (whereClause, whereParams) = BuildWhereClause(queryCriteria.Predicate);
@@ -121,7 +113,7 @@ namespace Reform.Logic
             if (queryCriteria.SortCriteria.Count < 1)
                 throw new ArgumentException("Paging requires at least one SortCriterion");
 
-            var columnNames = GetColumnNames(_metadataProvider.AllProperties);
+            var columnNames = GetColumnNames(metadataProvider.AllProperties);
             var fromClause = GetFromClause();
 
             var (whereClause, whereParams) = BuildWhereClause(queryCriteria.Predicate);
@@ -134,7 +126,7 @@ namespace Reform.Logic
             var offset = (pageCriteria.Page - 1) * pageCriteria.PageSize;
             var limit = pageCriteria.PageSize;
 
-            return $"SELECT {columnNames}{fromClause}{where}{orderByClause} {_dialect.GetPagingSql(limit, offset)}";
+            return $"SELECT {columnNames}{fromClause}{where}{orderByClause} {dialect.GetPagingSql(limit, offset)}";
         }
 
         private string GetFromClause()
@@ -144,29 +136,28 @@ namespace Reform.Logic
 
         private string GetTableName()
         {
-            return _dialect.QuoteIdentifier(_metadataProvider.TableName);
+            return dialect.QuoteIdentifier(metadataProvider.TableName);
         }
 
         private string GetOrderByClause(IEnumerable<SortCriterion> sortCriteriaList)
         {
             var stringBuilder = new StringBuilder();
 
-            if (sortCriteriaList != null)
-                foreach (var sortCriteria in sortCriteriaList)
-                {
-                    if (stringBuilder.Length > 0)
-                        stringBuilder.Append(", ");
+            foreach (var sortCriteria in sortCriteriaList)
+            {
+                if (stringBuilder.Length > 0)
+                    stringBuilder.Append(", ");
 
-                    var propertyMap = _metadataProvider.GetPropertyMapByPropertyName(sortCriteria.PropertyName);
+                var propertyMap = metadataProvider.GetPropertyMapByPropertyName(sortCriteria.PropertyName);
 
-                    if (propertyMap == null)
-                        throw new InvalidOperationException($"The type '{_metadataProvider.Type}' does not contain property metadata for the property '{sortCriteria.PropertyName}'.");
+                if (propertyMap == null)
+                    throw new InvalidOperationException($"The type '{metadataProvider.Type}' does not contain property metadata for the property '{sortCriteria.PropertyName}'.");
 
-                    stringBuilder.Append(_dialect.QuoteIdentifier(propertyMap.ColumnName));
+                stringBuilder.Append(dialect.QuoteIdentifier(propertyMap.ColumnName));
 
-                    if (sortCriteria.Direction == SortDirection.Descending)
-                        stringBuilder.Append(" DESC");
-                }
+                if (sortCriteria.Direction == SortDirection.Descending)
+                    stringBuilder.Append(" DESC");
+            }
 
             if (stringBuilder.Length > 0)
                 stringBuilder.Insert(0, " ORDER BY ");
@@ -179,7 +170,7 @@ namespace Reform.Logic
             var stringBuilder = new StringBuilder();
             var first = true;
 
-            foreach (var propertyMap in _metadataProvider.UpdateableProperties)
+            foreach (var propertyMap in metadataProvider.UpdateableProperties)
             {
                 if (!first) stringBuilder.Append(',');
                 first = false;
@@ -194,11 +185,11 @@ namespace Reform.Logic
             var stringBuilder = new StringBuilder();
             var first = true;
 
-            foreach (var propertyMap in _metadataProvider.UpdateableProperties)
+            foreach (var propertyMap in metadataProvider.UpdateableProperties)
             {
                 if (!first) stringBuilder.Append(',');
                 first = false;
-                stringBuilder.Append(_dialect.QuoteIdentifier(propertyMap.ColumnName))
+                stringBuilder.Append(dialect.QuoteIdentifier(propertyMap.ColumnName))
                     .Append("=@")
                     .Append(AddParameter(parameters, propertyMap, instance));
             }
@@ -217,7 +208,7 @@ namespace Reform.Logic
 
         private string GetColumnNames(IEnumerable<PropertyMap> propertyMaps)
         {
-            return string.Join(",", propertyMaps.Select(x => _dialect.QuoteIdentifier(x.ColumnName)));
+            return string.Join(",", propertyMaps.Select(x => dialect.QuoteIdentifier(x.ColumnName)));
         }
     }
 }

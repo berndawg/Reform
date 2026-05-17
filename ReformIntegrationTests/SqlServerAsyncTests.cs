@@ -1,5 +1,4 @@
 using Reform;
-using Reform.Interfaces;
 using ReformIntegrationTests.Objects;
 
 namespace ReformIntegrationTests

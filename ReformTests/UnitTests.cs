@@ -1,5 +1,7 @@
 using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.DependencyInjection;
 using Reform;
+using Reform.Dialects;
 using Reform.Enum;
 using Reform.Interfaces;
 using Reform.Objects;
@@ -504,6 +506,68 @@ namespace ReformTests
             Assert.True(await countryLogic.ExistsAsync(x => x.CountryName == "Italy"));
             Assert.False(await countryLogic.ExistsAsync(x => x.CountryName == "Germany"));
             Assert.False(await countryLogic.ExistsAsync(x => x.CountryName == "Spain"));
+        }
+
+        [Fact]
+        public void Merge_Rolls_Back_On_Mid_List_Validation_Failure()
+        {
+            var countryLogic = _reformer.For<Country>();
+            var airportLogic = _reformer.For<Airport>();
+
+            countryLogic.Insert(new Country { CountryName = "USA" });
+            var usaId = countryLogic.SelectSingle(x => x.CountryName == "USA").CountryId;
+
+            airportLogic.Insert(new List<Airport>
+            {
+                new Airport { AirportCode = "LAX", AirportName = "Los Angeles", CountryId = usaId },
+                new Airport { AirportCode = "AUS", AirportName = "Austin",      CountryId = usaId }
+            });
+
+            var mergeList = new List<Airport>
+            {
+                new Airport { AirportCode = "JFK", AirportName = "Kennedy", CountryId = usaId },
+                new Airport { AirportCode = "",    AirportName = "",        CountryId = usaId },
+                new Airport { AirportCode = "ORD", AirportName = "O'Hare",  CountryId = usaId }
+            };
+
+            Assert.Throws<ArgumentException>(() => airportLogic.Merge(mergeList));
+
+            Assert.Equal(2, airportLogic.Count());
+            Assert.True (airportLogic.Exists(a => a.AirportCode == "LAX"));
+            Assert.True (airportLogic.Exists(a => a.AirportCode == "AUS"));
+            Assert.False(airportLogic.Exists(a => a.AirportCode == "JFK"));
+            Assert.False(airportLogic.Exists(a => a.AirportCode == "ORD"));
+        }
+
+        [Fact]
+        public async Task MergeAsync_Rolls_Back_On_Mid_List_Validation_Failure()
+        {
+            var countryLogic = _reformer.For<Country>();
+            var airportLogic = _reformer.For<Airport>();
+
+            await countryLogic.InsertAsync(new Country { CountryName = "USA" });
+            var usaId = (await countryLogic.SelectSingleAsync(x => x.CountryName == "USA")).CountryId;
+
+            await airportLogic.InsertAsync(new List<Airport>
+            {
+                new Airport { AirportCode = "LAX", AirportName = "Los Angeles", CountryId = usaId },
+                new Airport { AirportCode = "AUS", AirportName = "Austin",      CountryId = usaId }
+            });
+
+            var mergeList = new List<Airport>
+            {
+                new Airport { AirportCode = "JFK", AirportName = "Kennedy", CountryId = usaId },
+                new Airport { AirportCode = "",    AirportName = "",        CountryId = usaId },
+                new Airport { AirportCode = "ORD", AirportName = "O'Hare",  CountryId = usaId }
+            };
+
+            await Assert.ThrowsAsync<ArgumentException>(() => airportLogic.MergeAsync(mergeList));
+
+            Assert.Equal(2, await airportLogic.CountAsync());
+            Assert.True (await airportLogic.ExistsAsync(a => a.AirportCode == "LAX"));
+            Assert.True (await airportLogic.ExistsAsync(a => a.AirportCode == "AUS"));
+            Assert.False(await airportLogic.ExistsAsync(a => a.AirportCode == "JFK"));
+            Assert.False(await airportLogic.ExistsAsync(a => a.AirportCode == "ORD"));
         }
 
         #endregion
@@ -1133,6 +1197,44 @@ namespace ReformTests
         public void WriteLine(string stringValue)
         {
             Console.WriteLine(stringValue);
+        }
+    }
+
+    public class ReformerTests
+    {
+        private sealed class CapturedService
+        {
+            public IDialect Dialect { get; }
+            public CapturedService(IDialect dialect) { Dialect = dialect; }
+        }
+
+        [Fact]
+        public void Register_Factory_Resolves_With_ServiceProvider()
+        {
+            using var factory = new Reformer()
+                .UseSqlite("Data Source=:memory:")
+                .Register<CapturedService>(sp => new CapturedService(sp.GetRequiredService<IDialect>()))
+                .Build();
+
+            var resolved = factory.Resolve<CapturedService>();
+
+            Assert.NotNull(resolved);
+            Assert.IsType<SqliteDialect>(resolved.Dialect);
+        }
+
+        [Fact]
+        public void Register_Factory_Overrides_Default_Registration()
+        {
+            var custom = new TestDebugLogger();
+
+            using var factory = new Reformer()
+                .UseSqlite("Data Source=:memory:")
+                .Register<IDebugLogger>(_ => custom)
+                .Build();
+
+            var resolved = factory.Resolve<IDebugLogger>();
+
+            Assert.Same(custom, resolved);
         }
     }
 }

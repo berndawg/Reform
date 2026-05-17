@@ -144,4 +144,36 @@ ReformFactory factory = new Reformer()
     .Build();
 ```
 
-You can also subclass `Reform<T>` and override its virtual methods to customise connection handling and individual operations.
+Common swap points: `IDataAccess<T>` (replace ADO.NET execution), `ISqlBuilder<T>` (dialect-specific SQL), `IValidator<T>` (custom validation), `IDebugLogger` (custom logging).
+
+For per-entity-type registrations that need DI-resolved dependencies, use the factory overload:
+
+```csharp
+new Reformer()
+    .UseSqlite(connectionString)
+    .Register<IReform<MyEntity>>(sp => new MyCustomReform<MyEntity>(
+        sp.GetRequiredService<IMetadataProvider<MyEntity>>(),
+        sp.GetRequiredService<IValidator<MyEntity>>()))
+    .Build();
+```
+
+For non-database backends, implement `IReform<T>` directly — see the `Reform.Excel` package below for a working example.
+
+## Excel backend (Reform.Excel)
+
+Install `Reform.Excel` for an `IReform<T>` implementation backed by an .xlsx file via ClosedXML:
+
+```csharp
+using Reform;
+using Reform.Excel;
+
+ReformFactory factory = new Reformer()
+    .UseSqlite("Data Source=mydb.db")
+    .UseExcel<Country>(@"C:\data\countries.xlsx")   // Excel for Country
+    .Build();
+
+IReform<Country> countries = factory.For<Country>();
+countries.Insert(new Country { CountryName = "France" });
+```
+
+Excel and SQL backends can coexist in the same factory — `UseExcel<T>` overrides the default `IReform<T>` only for the specified entity type. The Excel backend does not participate in `IDbConnection` transactions; the connection-taking overloads of `Insert`/`Update`/`Delete` throw `NotSupportedException`.

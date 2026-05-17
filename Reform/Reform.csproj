@@ -5,15 +5,15 @@
 
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageId>Reform</PackageId>
-    <Version>4.0</Version>
+    <Version>5.0.0</Version>
     <Authors>Bernie Seabrook</Authors>
     <Company>Bernie Seabrook</Company>
     <Product>Reform</Product>
     <Description>Reform is an ORM that's extremely easy to use and extend. Stop writing SQL! Use the IReform interface instead. It includes methods like Count, Exists, Select, Insert, Update, and Delete. Reform is fully customizable and supports SQLite, SQL Server, MySQL, and PostgreSQL. Define POCOs, add Reform code attributes, and you're done.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <NeutralLanguage>en</NeutralLanguage>
-    <AssemblyVersion>4.0.0.0</AssemblyVersion>
-    <FileVersion>4.0.0.0</FileVersion>
+    <AssemblyVersion>5.0.0.0</AssemblyVersion>
+    <FileVersion>5.0.0.0</FileVersion>
   </PropertyGroup>
 
   <ItemGroup>
