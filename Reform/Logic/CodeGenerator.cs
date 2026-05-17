@@ -17,6 +17,8 @@ public sealed partial class CodeGenerator(IDialect dialect, IConnectionStringPro
         { "bigint", "long" },
         { "smallint", "short" },
         { "tinyint", "byte" },
+        { "mediumint", "int" },
+        { "year", "short" },
 
         // Boolean
         { "bit", "bool" },
@@ -30,6 +32,7 @@ public sealed partial class CodeGenerator(IDialect dialect, IConnectionStringPro
 
         // Floating point
         { "float", "double" },
+        { "double", "double" },
         { "double precision", "double" },
         { "real", "float" },
 
@@ -38,11 +41,14 @@ public sealed partial class CodeGenerator(IDialect dialect, IConnectionStringPro
         { "datetime", "DateTime" },
         { "datetime2", "DateTime" },
         { "smalldatetime", "DateTime" },
+        { "timestamp", "DateTime" },
         { "timestamp without time zone", "DateTime" },
         { "datetimeoffset", "DateTimeOffset" },
         { "timestamp with time zone", "DateTimeOffset" },
         { "time", "TimeSpan" },
         { "time without time zone", "TimeSpan" },
+        { "time with time zone", "DateTimeOffset" },
+        { "interval", "TimeSpan" },
 
         // GUID
         { "uniqueidentifier", "Guid" },
@@ -54,6 +60,9 @@ public sealed partial class CodeGenerator(IDialect dialect, IConnectionStringPro
         { "image", "byte[]" },
         { "bytea", "byte[]" },
         { "blob", "byte[]" },
+        { "tinyblob", "byte[]" },
+        { "mediumblob", "byte[]" },
+        { "longblob", "byte[]" },
     };
 
     private static readonly HashSet<string> ValueTypes =
@@ -132,7 +141,7 @@ public sealed partial class CodeGenerator(IDialect dialect, IConnectionStringPro
             if (col.IsIdentity)
                 attrParts.Add("IsIdentity = true");
 
-            if (!col.IsNullable && !col.IsPrimaryKey)
+            if (col is { IsNullable: false, IsPrimaryKey: false })
                 attrParts.Add("IsRequired = true");
 
             sb.AppendLine($"    [PropertyMetadata({string.Join(", ", attrParts)})]");
